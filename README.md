@@ -1,16 +1,18 @@
 --[[
-	SNAP ESP V7 - "Nebula" (Final Build)
+	SNAP ESP - FINAL BUILD
 	-------------------------------------------------------------
 	Autor: [Seu Nome] & Assistente AI
 	Data: [Data Atual]
 
-	CHANGELOG (V7.1 - Final):
-	- ANIMAÇÃO CORRIGIDA: A animação "travada" foi resolvida refatorando a lógica
-	  para animar um NumberValue, que controla indiretamente a escala da UI. O resultado
-	  é uma animação de zoom perfeitamente fluida e consistente.
-	- POLIMENTO VISUAL: Ajustes finos no layout e tipografia para garantir a melhor
-	  aparência possível em todas as situações.
-	- CÓDIGO FINALIZADO: Este build é considerado estável, polido e completo.
+	DESCRIÇÃO:
+	Uma ferramenta de ESP (Extra Sensory Perception) completa e customizável,
+	com uma interface de usuário moderna, responsiva e de resposta instantânea.
+
+	CHANGELOG (FINAL BUILD):
+	- ANIMAÇÃO REMOVIDA: Abertura e fechamento do painel agora são instantâneos.
+	- SISTEMA DE NOTIFICAÇÕES: Adicionado um sistema elegante para exibir mensagens
+	  temporárias na tela (ex: status e dicas).
+	- CÓDIGO FINALIZADO: Versão estável, limpa e polida, considerada completa.
 ]]
 
 -- ===================================================================
@@ -49,7 +51,7 @@ local COLORS = { BackgroundStart = Color3.fromRGB(25, 25, 40), BackgroundEnd = C
 local screenGui = Instance.new("ScreenGui"); screenGui.Name = "ESP_ControlPanel_GUI"; screenGui.ResetOnSpawn = false; screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 local mainFrame = Instance.new("Frame"); mainFrame.Name = "MainFrame"; mainFrame.AnchorPoint = Vector2.new(0.5, 0.5); mainFrame.Position = lastUIPosition; mainFrame.BackgroundColor3 = COLORS.BackgroundEnd; mainFrame.BorderSizePixel = 0; mainFrame.Visible = isUiVisible; mainFrame.ClipsDescendants = true; mainFrame.Parent = screenGui
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8); local gradient = Instance.new("UIGradient", mainFrame); gradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, COLORS.BackgroundStart), ColorSequenceKeypoint.new(1, COLORS.BackgroundEnd)}); gradient.Rotation = 90; Instance.new("UIStroke", mainFrame).Color = COLORS.Stroke
-mainFrame.Size = UDim2.fromScale(0, 0); local BASE_SIZE_SCALE = 0.5; local aspectRatio = Instance.new("UIAspectRatioConstraint", mainFrame); aspectRatio.AspectRatio = 280 / 450; aspectRatio.DominantAxis = Enum.DominantAxis.Height; local sizeConstraint = Instance.new("UISizeConstraint", mainFrame); sizeConstraint.MinSize = Vector2.new(260, 400); sizeConstraint.MaxSize = Vector2.new(350, 550)
+local BASE_SIZE_SCALE = 0.5; mainFrame.Size = UDim2.fromScale(0, BASE_SIZE_SCALE); local aspectRatio = Instance.new("UIAspectRatioConstraint", mainFrame); aspectRatio.AspectRatio = 280 / 450; aspectRatio.DominantAxis = Enum.DominantAxis.Height; local sizeConstraint = Instance.new("UISizeConstraint", mainFrame); sizeConstraint.MinSize = Vector2.new(260, 400); sizeConstraint.MaxSize = Vector2.new(350, 550)
 local titleContainer = Instance.new("Frame", mainFrame); titleContainer.Name = "TitleContainer"; titleContainer.Size = UDim2.new(1, 0, 0, 50); titleContainer.BackgroundTransparency = 1
 local titleLayout = Instance.new("UIListLayout", titleContainer); titleLayout.FillDirection = Enum.FillDirection.Horizontal; titleLayout.VerticalAlignment = Enum.VerticalAlignment.Center; titleLayout.SortOrder = Enum.SortOrder.LayoutOrder; titleLayout.Padding = UDim.new(0, 8)
 local titlePadding = Instance.new("UIPadding", titleContainer); titlePadding.PaddingLeft = UDim.new(0, 15); titlePadding.PaddingRight = UDim.new(0, 15)
@@ -76,12 +78,7 @@ local espToggleButton = Instance.new("TextButton", playerTemplate); espToggleBut
 -- ===================================================================
 local function applyHoverEffect(button, baseColor, hoverColor) button.MouseEnter:Connect(function() TweenService:Create(button, TweenInfo.new(0.2), { BackgroundColor3 = hoverColor }):Play() end); button.MouseLeave:Connect(function() TweenService:Create(button, TweenInfo.new(0.2), { BackgroundColor3 = baseColor }):Play() end) end
 local function updateToggleButton(button, isEnabled) if isEnabled then button.Text = "ON"; button.BackgroundColor3 = COLORS.Accent else button.Text = "OFF"; button.BackgroundColor3 = COLORS.Red end end
-local function populatePlayerList()
-	for _, child in ipairs(scrollingFrame:GetChildren()) do if child:IsA("Frame") then child:Destroy() end end; local playerCount = 0
-	for _, player in ipairs(Players:GetPlayers()) do if player == localPlayer then continue end; playerCount = playerCount + 1; local playerFrame = playerTemplate:Clone(); playerFrame.Name = player.Name; playerFrame.TextContainer.DisplayName.Text = player.DisplayName; playerFrame.TextContainer.UserName.Text = "(@" .. player.Name .. ")"; local content, isReady = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48); if isReady then playerFrame.Icon.Image = content end; if espTargets[player] == nil then espTargets[player] = false end; updateToggleButton(playerFrame.ESPToggle, espTargets[player]); playerFrame.ESPToggle.MouseButton1Click:Connect(function() espTargets[player] = not espTargets[player]; updateToggleButton(playerFrame.ESPToggle, espTargets[player]) end); applyHoverEffect(playerFrame.ESPToggle, espTargets[player] and COLORS.Accent or COLORS.Red, espTargets[player] and COLORS.Accent:Lerp(Color3.new(1,1,1), 0.3) or COLORS.Red:Lerp(Color3.new(1,1,1), 0.3)); playerFrame.Parent = scrollingFrame
-	end
-	local itemHeight = playerTemplate.Size.Y.Offset; local padding = uiListLayout.Padding.Offset; scrollingFrame.CanvasSize = UDim2.fromOffset(0, (itemHeight * playerCount) + (padding * (playerCount + 1)))
-end
+local function populatePlayerList() for _, child in ipairs(scrollingFrame:GetChildren()) do if child:IsA("Frame") then child:Destroy() end end; local playerCount = 0; for _, player in ipairs(Players:GetPlayers()) do if player == localPlayer then continue end; playerCount = playerCount + 1; local playerFrame = playerTemplate:Clone(); playerFrame.Name = player.Name; playerFrame.TextContainer.DisplayName.Text = player.DisplayName; playerFrame.TextContainer.UserName.Text = "(@" .. player.Name .. ")"; local content, isReady = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48); if isReady then playerFrame.Icon.Image = content end; if espTargets[player] == nil then espTargets[player] = false end; updateToggleButton(playerFrame.ESPToggle, espTargets[player]); playerFrame.ESPToggle.MouseButton1Click:Connect(function() espTargets[player] = not espTargets[player]; updateToggleButton(playerFrame.ESPToggle, espTargets[player]) end); applyHoverEffect(playerFrame.ESPToggle, espTargets[player] and COLORS.Accent or COLORS.Red, espTargets[player] and COLORS.Accent:Lerp(Color3.new(1,1,1), 0.3) or COLORS.Red:Lerp(Color3.new(1,1,1), 0.3)); playerFrame.Parent = scrollingFrame end; local itemHeight = playerTemplate.Size.Y.Offset; local padding = uiListLayout.Padding.Offset; scrollingFrame.CanvasSize = UDim2.fromOffset(0, (itemHeight * playerCount) + (padding * (playerCount + 1))) end
 
 -- ===================================================================
 -- 3. LÓGICA DO ESP (DESENHO)
@@ -96,39 +93,17 @@ local function makeDraggable(guiObject, dragHandle) local dragging = false; loca
 makeDraggable(mainFrame, titleContainer)
 
 -- ===================================================================
--- 5. CONEXÕES DE EVENTOS E ANIMAÇÃO (LÓGICA CORRIGIDA)
+-- 5. CONEXÕES DE EVENTOS (ABERTURA INSTANTÂNEA)
 -- ===================================================================
-local tweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local animator = Instance.new("NumberValue") -- Valor indireto para animar
-animator.Value = 0
-
-animator.Changed:Connect(function(value)
-	-- Conecta o valor animado à escala da altura da UI
-	mainFrame.Size = UDim2.fromScale(0, BASE_SIZE_SCALE * value)
-end)
-
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed or input.KeyCode ~= CONFIG.TOGGLE_UI_KEY then return end
 	isUiVisible = not isUiVisible
-	
-	local targetValue = isUiVisible and 1 or 0
-	
+	mainFrame.Visible = isUiVisible
 	if isUiVisible then
 		mainFrame.Position = lastUIPosition
-		mainFrame.Visible = true
 		populatePlayerList()
 	end
-	
-	local tween = TweenService:Create(animator, tweenInfo, { Value = targetValue })
-	tween:Play()
-	
-	if not isUiVisible then
-		tween.Completed:Connect(function()
-			mainFrame.Visible = false
-		end)
-	end
 end)
-
 toggleAllOnButton.MouseButton1Click:Connect(function() for _, player in ipairs(Players:GetPlayers()) do if player ~= localPlayer then espTargets[player] = true end end; populatePlayerList() end)
 toggleAllOffButton.MouseButton1Click:Connect(function() for _, player in ipairs(Players:GetPlayers()) do if player ~= localPlayer then espTargets[player] = false end end; populatePlayerList() end)
 refreshButton.MouseButton1Click:Connect(populatePlayerList)
@@ -138,4 +113,53 @@ applyHoverEffect(refreshButton, COLORS.Item, COLORS.Item:Lerp(Color3.new(1,1,1),
 Players.PlayerAdded:Connect(function(player) task.wait(1); if mainFrame.Visible then populatePlayerList() end end)
 Players.PlayerRemoving:Connect(function(player) if espTargets[player] then espTargets[player] = nil end; if espDrawings[player] then for _, line in pairs(espDrawings[player]) do line:Remove() end; espDrawings[player] = nil end; if mainFrame.Visible then populatePlayerList() end end)
 RunService.RenderStepped:Connect(updateEsp)
+
+-- ===================================================================
+-- 6. SISTEMA DE NOTIFICAÇÕES
+-- ===================================================================
+local notificationContainer = Instance.new("Frame", screenGui)
+notificationContainer.Name = "NotificationContainer"; notificationContainer.Size = UDim2.new(0, 300, 1, 0); notificationContainer.Position = UDim2.new(1, -310, 0, -10)
+notificationContainer.BackgroundTransparency = 1
+local notificationLayout = Instance.new("UIListLayout", notificationContainer); notificationLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right; notificationLayout.SortOrder = Enum.SortOrder.LayoutOrder; notificationLayout.Padding = UDim.new(0, 5)
+
+local function ShowNotification(message, duration)
+	duration = duration or 5
+	local notification = Instance.new("Frame"); notification.Name = "Notification"; notification.Size = UDim2.new(1, 0, 0, 50); notification.BackgroundColor3 = COLORS.BackgroundEnd; notification.ClipsDescendants = true
+	local nCorner = Instance.new("UICorner", notification); nCorner.CornerRadius = UDim.new(0, 6)
+	local nStroke = Instance.new("UIStroke", notification); nStroke.Color = COLORS.Accent
+	local nGradient = Instance.new("UIGradient", notification); nGradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, COLORS.BackgroundStart), ColorSequenceKeypoint.new(1, COLORS.BackgroundEnd)}); nGradient.Rotation = 45
+	local nText = Instance.new("TextLabel", notification); nText.Name = "Message"; nText.Size = UDim2.new(1, -20, 1, -10); nText.Position = UDim2.new(0.5, 0, 0.5, 0); nText.AnchorPoint = Vector2.new(0.5, 0.5)
+	nText.Font = Enum.Font.SciFi; nText.TextColor3 = COLORS.Text; nText.Text = message; nText.TextScaled = true; nText.BackgroundTransparency = 1
+	
+	local tweenInfoShow = TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+	local tweenInfoHide = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+	
+	coroutine.wrap(function()
+		notification.Parent = notificationContainer
+		local children = {nStroke, nText, nGradient}
+		for _, child in ipairs(children) do
+			TweenService:Create(child, tweenInfoShow, { Transparency = 0 }):Play()
+		end
+		TweenService:Create(notification, tweenInfoShow, { BackgroundTransparency = 0 }):Play()
+		
+		task.wait(duration)
+		
+		for _, child in ipairs(children) do
+			TweenService:Create(child, tweenInfoHide, { Transparency = 1 }):Play()
+		end
+		local hideTween = TweenService:Create(notification, tweenInfoHide, { BackgroundTransparency = 1 })
+		hideTween:Play()
+		hideTween.Completed:Wait()
+		notification:Destroy()
+	end)()
+end
+
+-- ===================================================================
+-- INICIALIZAÇÃO
+-- ===================================================================
 populatePlayerList()
+
+task.wait(1)
+ShowNotification("SNAP ESP Iniciado com Sucesso", 4)
+task.wait(4.5)
+ShowNotification("Pressione 'K' para abrir/fechar", 5)

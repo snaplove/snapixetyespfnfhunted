@@ -1,18 +1,17 @@
 --[[
-	SNAP ESP - FINAL BUILD
+	SNAP ESP - FINAL BUILD (v2)
 	-------------------------------------------------------------
 	Autor: [Seu Nome] & Assistente AI
 	Data: [Data Atual]
 
-	DESCRIÇÃO:
-	Uma ferramenta de ESP (Extra Sensory Perception) completa e customizável,
-	com uma interface de usuário moderna, responsiva e de resposta instantânea.
-
-	CHANGELOG (FINAL BUILD):
-	- ANIMAÇÃO REMOVIDA: Abertura e fechamento do painel agora são instantâneos.
-	- SISTEMA DE NOTIFICAÇÕES: Adicionado um sistema elegante para exibir mensagens
-	  temporárias na tela (ex: status e dicas).
-	- CÓDIGO FINALIZADO: Versão estável, limpa e polida, considerada completa.
+	CHANGELOG (FINAL BUILD v2):
+	- SISTEMA DE NOTIFICAÇÕES CORRIGIDO: O sistema customizado foi completamente
+	  removido e substituído pelo sistema de notificações nativo do Roblox
+	  (StarterGui:SetCore("SendNotification")).
+	- LIMPEZA DE CÓDIGO: Toda a lógica de UI e animação relacionada ao sistema de
+	  notificações antigo foi deletada, tornando o script mais enxuto.
+	- ESTABILIDADE: O script agora está mais estável e alinhado com as
+	  melhores práticas da plataforma.
 ]]
 
 -- ===================================================================
@@ -23,6 +22,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
+local StarterGui = game:GetService("StarterGui") -- <<<< ADICIONADO
 
 local localPlayer = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
@@ -47,6 +47,7 @@ local lastUIPosition = UDim2.new(0.5, 0, 0.5, 0)
 -- ===================================================================
 -- 1. CRIAÇÃO DA INTERFACE GRÁFICA (GUI) - TEMA "NEBULA"
 -- ===================================================================
+-- (Esta seção permanece a mesma, pois o design do painel está correto)
 local COLORS = { BackgroundStart = Color3.fromRGB(25, 25, 40), BackgroundEnd = Color3.fromRGB(45, 30, 60), Item = Color3.fromRGB(35, 35, 55), Stroke = Color3.fromRGB(120, 100, 160), Accent = Color3.fromRGB(0, 230, 230), Red = Color3.fromRGB(255, 80, 120), Text = Color3.fromRGB(255, 255, 255), SubText = Color3.fromRGB(180, 180, 200) }
 local screenGui = Instance.new("ScreenGui"); screenGui.Name = "ESP_ControlPanel_GUI"; screenGui.ResetOnSpawn = false; screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 local mainFrame = Instance.new("Frame"); mainFrame.Name = "MainFrame"; mainFrame.AnchorPoint = Vector2.new(0.5, 0.5); mainFrame.Position = lastUIPosition; mainFrame.BackgroundColor3 = COLORS.BackgroundEnd; mainFrame.BorderSizePixel = 0; mainFrame.Visible = isUiVisible; mainFrame.ClipsDescendants = true; mainFrame.Parent = screenGui
@@ -115,51 +116,22 @@ Players.PlayerRemoving:Connect(function(player) if espTargets[player] then espTa
 RunService.RenderStepped:Connect(updateEsp)
 
 -- ===================================================================
--- 6. SISTEMA DE NOTIFICAÇÕES
+-- 6. SISTEMA DE NOTIFICAÇÕES (ROBLOX CORE)
 -- ===================================================================
-local notificationContainer = Instance.new("Frame", screenGui)
-notificationContainer.Name = "NotificationContainer"; notificationContainer.Size = UDim2.new(0, 300, 1, 0); notificationContainer.Position = UDim2.new(1, -310, 0, -10)
-notificationContainer.BackgroundTransparency = 1
-local notificationLayout = Instance.new("UIListLayout", notificationContainer); notificationLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right; notificationLayout.SortOrder = Enum.SortOrder.LayoutOrder; notificationLayout.Padding = UDim.new(0, 5)
-
-local function ShowNotification(message, duration)
+local function ShowNotification(title, text, duration)
 	duration = duration or 5
-	local notification = Instance.new("Frame"); notification.Name = "Notification"; notification.Size = UDim2.new(1, 0, 0, 50); notification.BackgroundColor3 = COLORS.BackgroundEnd; notification.ClipsDescendants = true
-	local nCorner = Instance.new("UICorner", notification); nCorner.CornerRadius = UDim.new(0, 6)
-	local nStroke = Instance.new("UIStroke", notification); nStroke.Color = COLORS.Accent
-	local nGradient = Instance.new("UIGradient", notification); nGradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, COLORS.BackgroundStart), ColorSequenceKeypoint.new(1, COLORS.BackgroundEnd)}); nGradient.Rotation = 45
-	local nText = Instance.new("TextLabel", notification); nText.Name = "Message"; nText.Size = UDim2.new(1, -20, 1, -10); nText.Position = UDim2.new(0.5, 0, 0.5, 0); nText.AnchorPoint = Vector2.new(0.5, 0.5)
-	nText.Font = Enum.Font.SciFi; nText.TextColor3 = COLORS.Text; nText.Text = message; nText.TextScaled = true; nText.BackgroundTransparency = 1
-	
-	local tweenInfoShow = TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-	local tweenInfoHide = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-	
-	coroutine.wrap(function()
-		notification.Parent = notificationContainer
-		local children = {nStroke, nText, nGradient}
-		for _, child in ipairs(children) do
-			TweenService:Create(child, tweenInfoShow, { Transparency = 0 }):Play()
-		end
-		TweenService:Create(notification, tweenInfoShow, { BackgroundTransparency = 0 }):Play()
-		
-		task.wait(duration)
-		
-		for _, child in ipairs(children) do
-			TweenService:Create(child, tweenInfoHide, { Transparency = 1 }):Play()
-		end
-		local hideTween = TweenService:Create(notification, tweenInfoHide, { BackgroundTransparency = 1 })
-		hideTween:Play()
-		hideTween.Completed:Wait()
-		notification:Destroy()
-	end)()
+	StarterGui:SetCore("SendNotification", {
+		Title = title,
+		Text = text,
+		Duration = duration,
+	})
 end
 
 -- ===================================================================
 -- INICIALIZAÇÃO
 -- ===================================================================
 populatePlayerList()
-
 task.wait(1)
-ShowNotification("SNAP ESP Iniciado com Sucesso", 4)
-task.wait(4.5)
-ShowNotification("Pressione 'K' para abrir/fechar", 5)
+ShowNotification("SNAP ESP", "Iniciado com Sucesso!", 5)
+task.wait(5.5)
+ShowNotification("Dica", string.format("Pressione '%s' para abrir/fechar o painel.", CONFIG.TOGGLE_UI_KEY.Name), 7)

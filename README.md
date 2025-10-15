@@ -1,9 +1,9 @@
 --[[
-	SNAP ESP V5.1 - por [Seu Nome]
+	SNAP ESP V5.2 - por [Seu Nome]
 	-------------------------------------------------------------
-	NOVIDADES (V5.1):
-	- CORRIGIDO: Erro "Padding is not a valid member of UIPadding".
-	- Design da interface completamente refeito para um visual moderno e limpo.
+	NOVIDADES (V5.2):
+	- CORREÇÃO DEFINITIVA: Erro "Padding is not a valid member of UIPadding" foi localizado e removido.
+	- Código reformatado para melhor legibilidade.
 ]]
 
 -- Serviços

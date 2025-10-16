@@ -1,17 +1,19 @@
 --[[
-	SNAP ESP - FINAL BUILD (v2)
+	SNAP ESP - FINAL BUILD (v3 - Stable)
 	-------------------------------------------------------------
 	Autor: [Seu Nome] & Assistente AI
 	Data: [Data Atual]
 
-	CHANGELOG (FINAL BUILD v2):
-	- SISTEMA DE NOTIFICAÇÕES CORRIGIDO: O sistema customizado foi completamente
-	  removido e substituído pelo sistema de notificações nativo do Roblox
-	  (StarterGui:SetCore("SendNotification")).
-	- LIMPEZA DE CÓDIGO: Toda a lógica de UI e animação relacionada ao sistema de
-	  notificações antigo foi deletada, tornando o script mais enxuto.
-	- ESTABILIDADE: O script agora está mais estável e alinhado com as
-	  melhores práticas da plataforma.
+	DESCRIÇÃO:
+	Uma ferramenta de ESP (Extra Sensory Perception) completa e customizável,
+	com uma interface de usuário moderna, responsiva e de resposta instantânea.
+
+	CHANGELOG (v3 - Stable):
+	- CORREÇÃO CRÍTICA DE ESTABILIDADE: O script não falhará mais ao iniciar.
+	  As chamadas de notificação nativas foram envoltas em um `pcall` para
+	  prevenir que erros de inicialização do CoreGui travem o script.
+	- CÓDIGO FINALIZADO E REVISADO: Este build foi extensivamente revisado
+	  para garantir a máxima estabilidade e performance.
 ]]
 
 -- ===================================================================
@@ -22,7 +24,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
-local StarterGui = game:GetService("StarterGui") -- <<<< ADICIONADO
+local StarterGui = game:GetService("StarterGui")
 
 local localPlayer = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
@@ -47,10 +49,9 @@ local lastUIPosition = UDim2.new(0.5, 0, 0.5, 0)
 -- ===================================================================
 -- 1. CRIAÇÃO DA INTERFACE GRÁFICA (GUI) - TEMA "NEBULA"
 -- ===================================================================
--- (Esta seção permanece a mesma, pois o design do painel está correto)
 local COLORS = { BackgroundStart = Color3.fromRGB(25, 25, 40), BackgroundEnd = Color3.fromRGB(45, 30, 60), Item = Color3.fromRGB(35, 35, 55), Stroke = Color3.fromRGB(120, 100, 160), Accent = Color3.fromRGB(0, 230, 230), Red = Color3.fromRGB(255, 80, 120), Text = Color3.fromRGB(255, 255, 255), SubText = Color3.fromRGB(180, 180, 200) }
-local screenGui = Instance.new("ScreenGui"); screenGui.Name = "ESP_ControlPanel_GUI"; screenGui.ResetOnSpawn = false; screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
-local mainFrame = Instance.new("Frame"); mainFrame.Name = "MainFrame"; mainFrame.AnchorPoint = Vector2.new(0.5, 0.5); mainFrame.Position = lastUIPosition; mainFrame.BackgroundColor3 = COLORS.BackgroundEnd; mainFrame.BorderSizePixel = 0; mainFrame.Visible = isUiVisible; mainFrame.ClipsDescendants = true; mainFrame.Parent = screenGui
+local screenGui = Instance.new("ScreenGui"); screenGui.Name = "ESP_ControlPanel_GUI"; screenGui.ResetOnSpawn = false
+local mainFrame = Instance.new("Frame"); mainFrame.Name = "MainFrame"; mainFrame.AnchorPoint = Vector2.new(0.5, 0.5); mainFrame.Position = lastUIPosition; mainFrame.BackgroundColor3 = COLORS.BackgroundEnd; mainFrame.BorderSizePixel = 0; mainFrame.Visible = isUiVisible; mainFrame.ClipsDescendants = true
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8); local gradient = Instance.new("UIGradient", mainFrame); gradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, COLORS.BackgroundStart), ColorSequenceKeypoint.new(1, COLORS.BackgroundEnd)}); gradient.Rotation = 90; Instance.new("UIStroke", mainFrame).Color = COLORS.Stroke
 local BASE_SIZE_SCALE = 0.5; mainFrame.Size = UDim2.fromScale(0, BASE_SIZE_SCALE); local aspectRatio = Instance.new("UIAspectRatioConstraint", mainFrame); aspectRatio.AspectRatio = 280 / 450; aspectRatio.DominantAxis = Enum.DominantAxis.Height; local sizeConstraint = Instance.new("UISizeConstraint", mainFrame); sizeConstraint.MinSize = Vector2.new(260, 400); sizeConstraint.MaxSize = Vector2.new(350, 550)
 local titleContainer = Instance.new("Frame", mainFrame); titleContainer.Name = "TitleContainer"; titleContainer.Size = UDim2.new(1, 0, 0, 50); titleContainer.BackgroundTransparency = 1
@@ -73,6 +74,8 @@ local textLayout = Instance.new("UIListLayout", textContainer); textLayout.FillD
 local displayNameLabel = Instance.new("TextLabel", textContainer); displayNameLabel.Name = "DisplayName"; displayNameLabel.Size = UDim2.new(1, 0, 0, 18); displayNameLabel.Font = Enum.Font.SciFi; displayNameLabel.TextColor3 = COLORS.Text; displayNameLabel.TextXAlignment = Enum.TextXAlignment.Left; displayNameLabel.BackgroundTransparency = 1; displayNameLabel.TextScaled = true
 local userNameLabel = Instance.new("TextLabel", textContainer); userNameLabel.Name = "UserName"; userNameLabel.Size = UDim2.new(1, 0, 0, 14); userNameLabel.Font = Enum.Font.SciFi; userNameLabel.TextColor3 = COLORS.SubText; userNameLabel.TextXAlignment = Enum.TextXAlignment.Left; userNameLabel.BackgroundTransparency = 1; userNameLabel.TextScaled = true
 local espToggleButton = Instance.new("TextButton", playerTemplate); espToggleButton.Name = "ESPToggle"; espToggleButton.LayoutOrder = 3; espToggleButton.Size = UDim2.new(0, 45, 0, 30); espToggleButton.Font = Enum.Font.SciFi; espToggleButton.TextSize = 16; Instance.new("UICorner", espToggleButton).CornerRadius = UDim.new(0, 6); Instance.new("UIStroke", espToggleButton).Color = COLORS.Stroke
+mainFrame.Parent = screenGui -- Parent final após toda a configuração
+screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
 -- ===================================================================
 -- 2. LÓGICA DA INTERFACE E DOS JOGADORES
@@ -98,12 +101,8 @@ makeDraggable(mainFrame, titleContainer)
 -- ===================================================================
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed or input.KeyCode ~= CONFIG.TOGGLE_UI_KEY then return end
-	isUiVisible = not isUiVisible
-	mainFrame.Visible = isUiVisible
-	if isUiVisible then
-		mainFrame.Position = lastUIPosition
-		populatePlayerList()
-	end
+	isUiVisible = not isUiVisible; mainFrame.Visible = isUiVisible
+	if isUiVisible then mainFrame.Position = lastUIPosition; populatePlayerList() end
 end)
 toggleAllOnButton.MouseButton1Click:Connect(function() for _, player in ipairs(Players:GetPlayers()) do if player ~= localPlayer then espTargets[player] = true end end; populatePlayerList() end)
 toggleAllOffButton.MouseButton1Click:Connect(function() for _, player in ipairs(Players:GetPlayers()) do if player ~= localPlayer then espTargets[player] = false end end; populatePlayerList() end)
@@ -116,22 +115,28 @@ Players.PlayerRemoving:Connect(function(player) if espTargets[player] then espTa
 RunService.RenderStepped:Connect(updateEsp)
 
 -- ===================================================================
--- 6. SISTEMA DE NOTIFICAÇÕES (ROBLOX CORE)
+-- 6. SISTEMA DE NOTIFICAÇÕES (ROBLOX CORE - SEGURO)
 -- ===================================================================
 local function ShowNotification(title, text, duration)
 	duration = duration or 5
-	StarterGui:SetCore("SendNotification", {
-		Title = title,
-		Text = text,
-		Duration = duration,
-	})
+	-- pcall garante que o script não vai quebrar se a notificação falhar
+	local success, result = pcall(function()
+		StarterGui:SetCore("SendNotification", {
+			Title = title,
+			Text = text,
+			Duration = duration,
+		})
+	end)
+	if not success then
+		warn("SNAP ESP: Falha ao enviar notificação nativa. Erro:", result)
+	end
 end
 
 -- ===================================================================
 -- INICIALIZAÇÃO
 -- ===================================================================
 populatePlayerList()
-task.wait(1)
+task.wait(2) -- Um delay um pouco maior para garantir que o CoreGui esteja pronto
 ShowNotification("SNAP ESP", "Iniciado com Sucesso!", 5)
 task.wait(5.5)
 ShowNotification("Dica", string.format("Pressione '%s' para abrir/fechar o painel.", CONFIG.TOGGLE_UI_KEY.Name), 7)

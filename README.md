@@ -1,19 +1,19 @@
 --[[
-	SNAP ESP - FINAL BUILD (v3 - Stable)
+	SNAP ESP - FINAL BUILD (Enxuta)
 	-------------------------------------------------------------
 	Autor: [Seu Nome] & Assistente AI
 	Data: [Data Atual]
 
 	DESCRIÇÃO:
-	Uma ferramenta de ESP (Extra Sensory Perception) completa e customizável,
-	com uma interface de usuário moderna, responsiva e de resposta instantânea.
+	Uma ferramenta de ESP (Extra Sensory Perception) completa, estável e focada.
+	Este build remove todas as funcionalidades secundárias para a máxima leveza
+	e confiabilidade.
 
-	CHANGELOG (v3 - Stable):
-	- CORREÇÃO CRÍTICA DE ESTABILIDADE: O script não falhará mais ao iniciar.
-	  A ordem de criação e parentesco da GUI foi reestruturada para ser à prova de falhas,
-	  eliminando erros de inicialização.
-	- CÓDIGO FINALIZADO E REVISADO: Este build foi extensivamente revisado
-	  para garantir a máxima estabilidade e performance.
+	CHANGELOG (Build Enxuta):
+	- REMOVIDO: Sistema de notificações foi completamente retirado.
+	- CÓDIGO OTIMIZADO: Script mais leve e com inicialização mais rápida.
+	- ESTABILIDADE MÁXIMA: Focado exclusivamente na funcionalidade principal do
+	  painel de controle e do ESP.
 ]]
 
 -- ===================================================================
@@ -24,7 +24,6 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
-local StarterGui = game:GetService("StarterGui")
 
 local localPlayer = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
@@ -49,37 +48,11 @@ local lastUIPosition = UDim2.new(0.5, 0, 0.5, 0)
 -- ===================================================================
 -- 1. CRIAÇÃO DA INTERFACE GRÁFICA (GUI) - TEMA "NEBULA"
 -- ===================================================================
--- Paleta de Cores do Design
 local COLORS = { BackgroundStart = Color3.fromRGB(25, 25, 40), BackgroundEnd = Color3.fromRGB(45, 30, 60), Item = Color3.fromRGB(35, 35, 55), Stroke = Color3.fromRGB(120, 100, 160), Accent = Color3.fromRGB(0, 230, 230), Red = Color3.fromRGB(255, 80, 120), Text = Color3.fromRGB(255, 255, 255), SubText = Color3.fromRGB(180, 180, 200) }
-
--- ScreenGui Principal - Criado e ANCORADO primeiro
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "ESP_ControlPanel_GUI"
-screenGui.ResetOnSpawn = false
-
--- Janela Principal (MainFrame) - Criada e ANCORADA em seguida
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-mainFrame.Position = lastUIPosition
-mainFrame.BackgroundColor3 = COLORS.BackgroundEnd
-mainFrame.BorderSizePixel = 0
-mainFrame.Visible = isUiVisible
-mainFrame.ClipsDescendants = true
-mainFrame.Parent = screenGui -- Ancora no screenGui
-
--- Lógica de Tamanho Responsivo (agora funciona corretamente)
-local BASE_SIZE_SCALE = 0.5
-mainFrame.Size = UDim2.fromScale(0, BASE_SIZE_SCALE)
-local aspectRatio = Instance.new("UIAspectRatioConstraint", mainFrame); aspectRatio.AspectRatio = 280 / 450; aspectRatio.DominantAxis = Enum.DominantAxis.Height
-local sizeConstraint = Instance.new("UISizeConstraint", mainFrame); sizeConstraint.MinSize = Vector2.new(260, 400); sizeConstraint.MaxSize = Vector2.new(350, 550)
-
--- Efeitos Visuais do MainFrame
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
-local gradient = Instance.new("UIGradient", mainFrame); gradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, COLORS.BackgroundStart), ColorSequenceKeypoint.new(1, COLORS.BackgroundEnd)}); gradient.Rotation = 90
-Instance.new("UIStroke", mainFrame).Color = COLORS.Stroke
-
--- Container do Título
+local screenGui = Instance.new("ScreenGui"); screenGui.Name = "ESP_ControlPanel_GUI"; screenGui.ResetOnSpawn = false
+local mainFrame = Instance.new("Frame"); mainFrame.Name = "MainFrame"; mainFrame.AnchorPoint = Vector2.new(0.5, 0.5); mainFrame.Position = lastUIPosition; mainFrame.BackgroundColor3 = COLORS.BackgroundEnd; mainFrame.BorderSizePixel = 0; mainFrame.Visible = isUiVisible; mainFrame.ClipsDescendants = true
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8); local gradient = Instance.new("UIGradient", mainFrame); gradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, COLORS.BackgroundStart), ColorSequenceKeypoint.new(1, COLORS.BackgroundEnd)}); gradient.Rotation = 90; Instance.new("UIStroke", mainFrame).Color = COLORS.Stroke
+local BASE_SIZE_SCALE = 0.5; mainFrame.Size = UDim2.fromScale(0, BASE_SIZE_SCALE); local aspectRatio = Instance.new("UIAspectRatioConstraint", mainFrame); aspectRatio.AspectRatio = 280 / 450; aspectRatio.DominantAxis = Enum.DominantAxis.Height; local sizeConstraint = Instance.new("UISizeConstraint", mainFrame); sizeConstraint.MinSize = Vector2.new(260, 400); sizeConstraint.MaxSize = Vector2.new(350, 550)
 local titleContainer = Instance.new("Frame", mainFrame); titleContainer.Name = "TitleContainer"; titleContainer.Size = UDim2.new(1, 0, 0, 50); titleContainer.BackgroundTransparency = 1
 local titleLayout = Instance.new("UIListLayout", titleContainer); titleLayout.FillDirection = Enum.FillDirection.Horizontal; titleLayout.VerticalAlignment = Enum.VerticalAlignment.Center; titleLayout.SortOrder = Enum.SortOrder.LayoutOrder; titleLayout.Padding = UDim.new(0, 8)
 local titlePadding = Instance.new("UIPadding", titleContainer); titlePadding.PaddingLeft = UDim.new(0, 15); titlePadding.PaddingRight = UDim.new(0, 15)
@@ -88,13 +61,9 @@ local buttonSize = UDim2.new(0, 40, 0, 32)
 local toggleAllOnButton = Instance.new("TextButton", titleContainer); toggleAllOnButton.Name = "ToggleAllOn"; toggleAllOnButton.Size = buttonSize; toggleAllOnButton.Text = "ON"; toggleAllOnButton.Font = Enum.Font.SciFi; toggleAllOnButton.TextSize = 16; toggleAllOnButton.TextColor3 = COLORS.Text; toggleAllOnButton.BackgroundColor3 = COLORS.Accent; toggleAllOnButton.LayoutOrder = 2; Instance.new("UICorner", toggleAllOnButton).CornerRadius = UDim.new(0, 6); Instance.new("UIStroke", toggleAllOnButton).Color = COLORS.Stroke
 local toggleAllOffButton = Instance.new("TextButton", titleContainer); toggleAllOffButton.Name = "ToggleAllOff"; toggleAllOffButton.Size = buttonSize; toggleAllOffButton.Text = "OFF"; toggleAllOffButton.Font = Enum.Font.SciFi; toggleAllOffButton.TextSize = 16; toggleAllOffButton.TextColor3 = COLORS.Text; toggleAllOffButton.BackgroundColor3 = COLORS.Red; toggleAllOffButton.LayoutOrder = 3; Instance.new("UICorner", toggleAllOffButton).CornerRadius = UDim.new(0, 6); Instance.new("UIStroke", toggleAllOffButton).Color = COLORS.Stroke
 local refreshButton = Instance.new("TextButton", titleContainer); refreshButton.Name = "RefreshButton"; refreshButton.Size = buttonSize; refreshButton.Text = "R"; refreshButton.Font = Enum.Font.SciFi; refreshButton.TextSize = 20; refreshButton.TextColor3 = COLORS.Text; refreshButton.BackgroundColor3 = COLORS.Item; refreshButton.LayoutOrder = 4; Instance.new("UICorner", refreshButton).CornerRadius = UDim.new(0, 6); Instance.new("UIStroke", refreshButton).Color = COLORS.Stroke
-
--- Área da Lista de Jogadores
 local scrollingFrame = Instance.new("ScrollingFrame", mainFrame); scrollingFrame.Name = "PlayerList"; scrollingFrame.Size = UDim2.new(1, 0, 1, -50); scrollingFrame.Position = UDim2.new(0, 0, 0, 50); scrollingFrame.BackgroundTransparency = 1; scrollingFrame.BorderSizePixel = 0; scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0); scrollingFrame.ScrollBarImageColor3 = COLORS.Accent; scrollingFrame.ScrollBarThickness = 4
 local listPadding = Instance.new("UIPadding", scrollingFrame); listPadding.PaddingLeft = UDim.new(0, 15); listPadding.PaddingRight = UDim.new(0, 15); listPadding.PaddingTop = UDim.new(0, 10); listPadding.PaddingBottom = UDim.new(0, 10)
 local uiListLayout = Instance.new("UIListLayout", scrollingFrame); uiListLayout.Padding = UDim.new(0, 8); uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
--- Template de Jogador
 local playerTemplate = Instance.new("Frame"); playerTemplate.Name = "PlayerTemplate"; playerTemplate.Size = UDim2.new(1, 0, 0, 55); playerTemplate.BackgroundColor3 = COLORS.Item; playerTemplate.BorderSizePixel = 0; Instance.new("UICorner", playerTemplate).CornerRadius = UDim.new(0, 6); Instance.new("UIStroke", playerTemplate).Color = COLORS.Stroke
 local itemLayout = Instance.new("UIListLayout", playerTemplate); itemLayout.FillDirection = Enum.FillDirection.Horizontal; itemLayout.VerticalAlignment = Enum.VerticalAlignment.Center; itemLayout.SortOrder = Enum.SortOrder.LayoutOrder; itemLayout.Padding = UDim.new(0, 10)
 local itemPadding = Instance.new("UIPadding", playerTemplate); itemPadding.PaddingLeft = UDim.new(0, 8); itemPadding.PaddingRight = UDim.new(0, 8)
@@ -104,8 +73,6 @@ local textLayout = Instance.new("UIListLayout", textContainer); textLayout.FillD
 local displayNameLabel = Instance.new("TextLabel", textContainer); displayNameLabel.Name = "DisplayName"; displayNameLabel.Size = UDim2.new(1, 0, 0, 18); displayNameLabel.Font = Enum.Font.SciFi; displayNameLabel.TextColor3 = COLORS.Text; displayNameLabel.TextXAlignment = Enum.TextXAlignment.Left; displayNameLabel.BackgroundTransparency = 1; displayNameLabel.TextScaled = true
 local userNameLabel = Instance.new("TextLabel", textContainer); userNameLabel.Name = "UserName"; userNameLabel.Size = UDim2.new(1, 0, 0, 14); userNameLabel.Font = Enum.Font.SciFi; userNameLabel.TextColor3 = COLORS.SubText; userNameLabel.TextXAlignment = Enum.TextXAlignment.Left; userNameLabel.BackgroundTransparency = 1; userNameLabel.TextScaled = true
 local espToggleButton = Instance.new("TextButton", playerTemplate); espToggleButton.Name = "ESPToggle"; espToggleButton.LayoutOrder = 3; espToggleButton.Size = UDim2.new(0, 45, 0, 30); espToggleButton.Font = Enum.Font.SciFi; espToggleButton.TextSize = 16; Instance.new("UICorner", espToggleButton).CornerRadius = UDim.new(0, 6); Instance.new("UIStroke", espToggleButton).Color = COLORS.Stroke
-
--- Passo final da criação da UI: parentesco com o PlayerGui
 screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
 -- ===================================================================
@@ -128,7 +95,7 @@ local function makeDraggable(guiObject, dragHandle) local dragging = false; loca
 makeDraggable(mainFrame, titleContainer)
 
 -- ===================================================================
--- 5. CONEXÕES DE EVENTOS (ABERTURA INSTANTÂNEA)
+-- 5. CONEXÕES DE EVENTOS
 -- ===================================================================
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed or input.KeyCode ~= CONFIG.TOGGLE_UI_KEY then return end
@@ -146,21 +113,6 @@ Players.PlayerRemoving:Connect(function(player) if espTargets[player] then espTa
 RunService.RenderStepped:Connect(updateEsp)
 
 -- ===================================================================
--- 6. SISTEMA DE NOTIFICAÇÕES (ROBLOX CORE - SEGURO)
--- ===================================================================
-local function ShowNotification(title, text, duration)
-	duration = duration or 5
-	local success, result = pcall(function()
-		StarterGui:SetCore("SendNotification", { Title = title, Text = text, Duration = duration })
-	end)
-	if not success then warn("SNAP ESP: Falha ao enviar notificação nativa. Erro:", result) end
-end
-
--- ===================================================================
 -- INICIALIZAÇÃO
 -- ===================================================================
 populatePlayerList()
-task.wait(2)
-ShowNotification("SNAP ESP", "Iniciado com Sucesso!", 5)
-task.wait(5.5)
-ShowNotification("Dica", string.format("Pressione '%s' para abrir/fechar o painel.", CONFIG.TOGGLE_UI_KEY.Name), 7)

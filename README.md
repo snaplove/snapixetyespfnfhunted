@@ -83,11 +83,11 @@ local function applyDynamicHoverEffect(button, player) button.MouseEnter:Connect
 local function populatePlayerList() for _, child in ipairs(scrollingFrame:GetChildren()) do if child:IsA("Frame") then child:Destroy() end end; local playerCount = 0; for _, player in ipairs(Players:GetPlayers()) do if player == localPlayer then continue end; playerCount = playerCount + 1; local playerFrame = playerTemplate:Clone(); playerFrame.Name = player.Name; playerFrame.TextContainer.DisplayName.Text = player.DisplayName; playerFrame.TextContainer.UserName.Text = "(@" .. player.Name .. ")"; local content, isReady = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48); if isReady then playerFrame.Icon.Image = content end; if espTargets[player] == nil then espTargets[player] = false end; local isEnabled = espTargets[player]; playerFrame.ESPToggle.Text = isEnabled and "ON" or "OFF"; playerFrame.ESPToggle.BackgroundColor3 = isEnabled and COLORS.Accent or COLORS.Red; playerFrame.ESPToggle.MouseButton1Click:Connect(function() espTargets[player] = not espTargets[player]; updateToggleButton(playerFrame.ESPToggle, espTargets[player]) end); applyDynamicHoverEffect(playerFrame.ESPToggle, player); playerFrame.Parent = scrollingFrame end; local itemHeight = playerTemplate.Size.Y.Offset; local padding = uiListLayout.Padding.Offset; scrollingFrame.CanvasSize = UDim2.fromOffset(0, (itemHeight * playerCount) + (padding * (playerCount + 1))) end
 
 -- ===================================================================
--- 3. LÓGICA DO ESP (DESENHO) - VERSÃO R6 COM TAMANHO DINÂMICO
+-- 3. LÓGICA DO ESP (DESENHO)
 -- ===================================================================
 local function getOrCreateDrawings(player) if espDrawings[player] then return espDrawings[player] end; local newDrawings = { Top = Drawing.new("Line"), Bottom = Drawing.new("Line"), Left = Drawing.new("Line"), Right = Drawing.new("Line") }; for _, line in pairs(newDrawings) do line.Color = CONFIG.BOX_COLOR; line.Thickness = CONFIG.THICKNESS; line.ZIndex = 2; line.Visible = false end; espDrawings[player] = newDrawings; return newDrawings end
 
--- [!] FUNÇÃO MODIFICADA PARA R6: Centralizada e com tamanho dinâmico
+-- [!] FUNÇÃO MODIFICADA PARA CENTRALIZAR A CAIXA
 local function updateEsp()
 	-- Esconde todas as caixas antes de redesenhar
 	for _, drawings in pairs(espDrawings) do
@@ -98,57 +98,49 @@ local function updateEsp()
 
 	-- Itera por todos os alvos do ESP
 	for player, isEnabled in pairs(espTargets) do
-		if not isEnabled then continue end
+		if not isEnabled then continue end -- Pula se estiver desativado
 
 		local character = player.Character
 		if not (character and player.Parent) then continue end
 
-		-- [MUDANÇA 1]: Pegamos as partes específicas do R6 para calcular a altura
-		local head = character:FindFirstChild("Head")
-		local rootPart = character:FindFirstChild("HumanoidRootPart") -- Usado para o centro horizontal
+		-- [MUDANÇA 1]: Em vez do BoundingBox, usamos o HumanoidRootPart como âncora
+		local rootPart = character:FindFirstChild("HumanoidRootPart")
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
 
-		-- Validação para garantir que o personagem R6 está completo e vivo
-		if not (head and rootPart and humanoid and humanoid.Health > 0) then
-			continue
+		if not (rootPart and humanoid and humanoid.Health > 0) then
+			continue -- Pula se o jogador não tiver as partes necessárias ou estiver morto
 		end
 
-		-- [MUDANÇA 2]: Calculamos os pontos 3D do topo da cabeça e da base dos pés
-		-- O topo é o centro da cabeça + metade da sua altura
-		local topWorldPos = head.Position + Vector3.new(0, head.Size.Y / 2, 0)
-		-- A base é o centro do HumanoidRootPart - metade da sua altura (aproximação dos pés em R6)
-		local bottomWorldPos = rootPart.Position - Vector3.new(0, rootPart.Size.Y, 0)
+		-- [MUDANÇA 2]: Pegamos a posição 3D do centro do corpo e convertemos para 2D
+		local position3D = rootPart.Position
+		local position2D, onScreen = camera:WorldToScreenPoint(position3D)
 
-		-- Convertemos os pontos 3D para coordenadas 2D na tela
-		local topScreenPos, onScreenTop = camera:WorldToScreenPoint(topWorldPos)
-		local bottomScreenPos, onScreenBottom = camera:WorldToScreenPoint(bottomWorldPos)
-		
-		-- Só desenha se ambos os pontos estiverem visíveis na tela
-		if onScreenTop and onScreenBottom then
+		-- Só desenha se o centro do jogador estiver na tela
+		if onScreen then
 			local lines = getOrCreateDrawings(player)
 
-			-- [MUDANÇA 3]: O tamanho da caixa é calculado dinamicamente
-			local boxHeight = bottomScreenPos.Y - topScreenPos.Y
+			-- [MUDANÇA 3]: Calculamos o tamanho da caixa com base na distância
+			local distance = (camera.CFrame.Position - position3D).Magnitude
 			
-			-- A largura é proporcional à altura (para não ficar um quadrado estranho)
-			local boxWidth = boxHeight / 2 
-
+			-- Fórmula para o tamanho: quanto mais longe, menor a caixa.
+			-- Você pode ajustar o '2000' para deixar a caixa maior ou menor no geral.
+			local boxSize = math.clamp(2000 / distance, 20, 250) 
+			
 			-- Posição do canto superior esquerdo da caixa
-			-- Usamos a coordenada X da cabeça na tela para centralizar horizontalmente
-			local topLeft = Vector2.new(topScreenPos.X - boxWidth / 2, topScreenPos.Y)
+			local topLeft = Vector2.new(position2D.X - boxSize / 2, position2D.Y - boxSize / 2)
 
 			-- Desenha as 4 linhas da caixa
 			lines.Top.From = topLeft
-			lines.Top.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y)
+			lines.Top.To = Vector2.new(topLeft.X + boxSize, topLeft.Y)
 
-			lines.Bottom.From = Vector2.new(topLeft.X, topLeft.Y + boxHeight)
-			lines.Bottom.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y + boxHeight)
+			lines.Bottom.From = Vector2.new(topLeft.X, topLeft.Y + boxSize)
+			lines.Bottom.To = Vector2.new(topLeft.X + boxSize, topLeft.Y + boxSize)
 
 			lines.Left.From = topLeft
-			lines.Left.To = Vector2.new(topLeft.X, topLeft.Y + boxHeight)
+			lines.Left.To = Vector2.new(topLeft.X, topLeft.Y + boxSize)
 
-			lines.Right.From = Vector2.new(topLeft.X + boxWidth, topLeft.Y)
-			lines.Right.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y + boxHeight)
+			lines.Right.From = Vector2.new(topLeft.X + boxSize, topLeft.Y)
+			lines.Right.To = Vector2.new(topLeft.X + boxSize, topLeft.Y + boxSize)
 
 			-- Torna todas as linhas da caixa visíveis
 			for _, line in pairs(lines) do

@@ -78,71 +78,77 @@ local espToggleButton = Instance.new("TextButton", playerTemplate); espToggleBut
 -- 2. LÓGICA DA INTERFACE E DOS JOGADORES
 -- ===================================================================
 local function applyHoverEffect(button, baseColor, hoverColor) button.MouseEnter:Connect(function() TweenService:Create(button, TweenInfo.new(0.2), { BackgroundColor3 = hoverColor }):Play() end); button.MouseLeave:Connect(function() TweenService:Create(button, TweenInfo.new(0.2), { BackgroundColor3 = baseColor }):Play() end) end
-
--- [!] CORREÇÃO: Função de update agora usa TweenService para evitar conflitos.
-local function updateToggleButton(button, isEnabled)
-	local targetColor = isEnabled and COLORS.Accent or COLORS.Red
-	button.Text = isEnabled and "ON" or "OFF"
-	-- Usar um tween rápido garante que a mudança seja suave e não entre em conflito com o hover.
-	TweenService:Create(button, TweenInfo.new(0.15), { BackgroundColor3 = targetColor }):Play()
-end
-
--- [!] CORREÇÃO: Hover dinâmico que sempre verifica o estado atual do jogador.
-local function applyDynamicHoverEffect(button, player)
-	button.MouseEnter:Connect(function()
-		local isEnabled = espTargets[player] -- Verifica o estado atual
-		local hoverColor = (isEnabled and COLORS.Accent or COLORS.Red):Lerp(Color3.new(1, 1, 1), 0.3)
-		TweenService:Create(button, TweenInfo.new(0.2), { BackgroundColor3 = hoverColor }):Play()
-	end)
-	button.MouseLeave:Connect(function()
-		local isEnabled = espTargets[player] -- Verifica o estado atual
-		local baseColor = isEnabled and COLORS.Accent or COLORS.Red
-		TweenService:Create(button, TweenInfo.new(0.2), { BackgroundColor3 = baseColor }):Play()
-	end)
-end
-
-local function populatePlayerList() 
-    for _, child in ipairs(scrollingFrame:GetChildren()) do if child:IsA("Frame") then child:Destroy() end end; 
-    local playerCount = 0; 
-    for _, player in ipairs(Players:GetPlayers()) do 
-        if player == localPlayer then continue end; 
-        playerCount = playerCount + 1; 
-        local playerFrame = playerTemplate:Clone(); 
-        playerFrame.Name = player.Name; 
-        playerFrame.TextContainer.DisplayName.Text = player.DisplayName; 
-        playerFrame.TextContainer.UserName.Text = "(@" .. player.Name .. ")"; 
-        local content, isReady = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48); 
-        if isReady then playerFrame.Icon.Image = content end; 
-        
-        if espTargets[player] == nil then espTargets[player] = false end; 
-        
-        -- Configuração inicial do botão sem animação para ser instantâneo
-        local isEnabled = espTargets[player]
-        playerFrame.ESPToggle.Text = isEnabled and "ON" or "OFF"
-        playerFrame.ESPToggle.BackgroundColor3 = isEnabled and COLORS.Accent or COLORS.Red
-        
-        -- Evento de clique que atualiza o estado E a cor via Tween
-        playerFrame.ESPToggle.MouseButton1Click:Connect(function() 
-            espTargets[player] = not espTargets[player]; 
-            updateToggleButton(playerFrame.ESPToggle, espTargets[player]) 
-        end); 
-        
-        -- Aplica o efeito de hover dinâmico
-        applyDynamicHoverEffect(playerFrame.ESPToggle, player)
-        
-        playerFrame.Parent = scrollingFrame 
-    end; 
-    local itemHeight = playerTemplate.Size.Y.Offset; 
-    local padding = uiListLayout.Padding.Offset; 
-    scrollingFrame.CanvasSize = UDim2.fromOffset(0, (itemHeight * playerCount) + (padding * (playerCount + 1))) 
-end
-
+local function updateToggleButton(button, isEnabled) local targetColor = isEnabled and COLORS.Accent or COLORS.Red; button.Text = isEnabled and "ON" or "OFF"; TweenService:Create(button, TweenInfo.new(0.15), { BackgroundColor3 = targetColor }):Play() end
+local function applyDynamicHoverEffect(button, player) button.MouseEnter:Connect(function() local isEnabled = espTargets[player]; local hoverColor = (isEnabled and COLORS.Accent or COLORS.Red):Lerp(Color3.new(1, 1, 1), 0.3); TweenService:Create(button, TweenInfo.new(0.2), { BackgroundColor3 = hoverColor }):Play() end); button.MouseLeave:Connect(function() local isEnabled = espTargets[player]; local baseColor = isEnabled and COLORS.Accent or COLORS.Red; TweenService:Create(button, TweenInfo.new(0.2), { BackgroundColor3 = baseColor }):Play() end) end
+local function populatePlayerList() for _, child in ipairs(scrollingFrame:GetChildren()) do if child:IsA("Frame") then child:Destroy() end end; local playerCount = 0; for _, player in ipairs(Players:GetPlayers()) do if player == localPlayer then continue end; playerCount = playerCount + 1; local playerFrame = playerTemplate:Clone(); playerFrame.Name = player.Name; playerFrame.TextContainer.DisplayName.Text = player.DisplayName; playerFrame.TextContainer.UserName.Text = "(@" .. player.Name .. ")"; local content, isReady = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48); if isReady then playerFrame.Icon.Image = content end; if espTargets[player] == nil then espTargets[player] = false end; local isEnabled = espTargets[player]; playerFrame.ESPToggle.Text = isEnabled and "ON" or "OFF"; playerFrame.ESPToggle.BackgroundColor3 = isEnabled and COLORS.Accent or COLORS.Red; playerFrame.ESPToggle.MouseButton1Click:Connect(function() espTargets[player] = not espTargets[player]; updateToggleButton(playerFrame.ESPToggle, espTargets[player]) end); applyDynamicHoverEffect(playerFrame.ESPToggle, player); playerFrame.Parent = scrollingFrame end; local itemHeight = playerTemplate.Size.Y.Offset; local padding = uiListLayout.Padding.Offset; scrollingFrame.CanvasSize = UDim2.fromOffset(0, (itemHeight * playerCount) + (padding * (playerCount + 1))) end
 
 -- ===================================================================
 -- 3. LÓGICA DO ESP (DESENHO)
 -- ===================================================================
 local function getOrCreateDrawings(player) if espDrawings[player] then return espDrawings[player] end; local newDrawings = { Top = Drawing.new("Line"), Bottom = Drawing.new("Line"), Left = Drawing.new("Line"), Right = Drawing.new("Line") }; for _, line in pairs(newDrawings) do line.Color = CONFIG.BOX_COLOR; line.Thickness = CONFIG.THICKNESS; line.ZIndex = 2; line.Visible = false end; espDrawings[player] = newDrawings; return newDrawings end
-local function updateEsp() for _, drawings in pairs(espDrawings) do for _, line in pairs(drawings) do line.Visible = false end end; for player, isEnabled in pairs(espTargets) do if not isEnabled then continue end; local character = player.Character; if not (character and character.PrimaryPart and player.Parent) then continue end; local humanoid = character:FindFirstChildOfClass("Humanoid"); if not (humanoid and humanoid.Health > 0) then continue end; local cframe, size = character:GetBoundingBox(); local corners, minX, maxX, minY, maxY = {}, math.huge, -math.huge, math.huge, -math.huge; local pointsOnScreen = 0; local halfSize = size / 2; for x = -1, 1, 2 do for y = -1, 1, 2 do for z = -1, 1, 2 do table.insert(corners, cframe * Vector3.new(halfSize.X * x, halfSize.Y * y, halfSize.Z * z)) end end end; for _, pos3D in ipairs(corners) do local pos2D, onScreen = camera:WorldToScreenPoint(pos3D); if onScreen and pos2D.Z > 0 then pointsOnScreen = pointsOnScreen + 1; minX = math.min(minX, pos2D.X); maxX = math.max(maxX, pos2D.X); minY = math.min(minY, pos2D.Y); maxY = math.max(maxY, pos2D.Y) end end; if pointsOnScreen > 0 then local lines = getOrCreateDrawings(player); local topLeft = Vector2.new(minX, minY); local boxWidth = maxX - minX; local boxHeight = maxY - minY; lines.Top.From = topLeft; lines.Top.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y); lines.Bottom.From = Vector2.new(topLeft.X, topLeft.Y + boxHeight); lines.Bottom.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y + boxHeight); lines.Left.From = topLeft; lines.Left.To = Vector2.new(topLeft.X, topLeft.Y + boxHeight); lines.Right.From = Vector2.new(topLeft.X + boxWidth, topLeft.Y); lines.Right.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y + boxHeight); for _, line in pairs(lines) do line.Visible = true end end end end
+
+-- [!] FUNÇÃO MODIFICADA PARA CENTRALIZAR A CAIXA
+local function updateEsp()
+	-- Esconde todas as caixas antes de redesenhar
+	for _, drawings in pairs(espDrawings) do
+		for _, line in pairs(drawings) do
+			line.Visible = false
+		end
+	end
+
+	-- Itera por todos os alvos do ESP
+	for player, isEnabled in pairs(espTargets) do
+		if not isEnabled then continue end -- Pula se estiver desativado
+
+		local character = player.Character
+		if not (character and player.Parent) then continue end
+
+		-- [MUDANÇA 1]: Em vez do BoundingBox, usamos o HumanoidRootPart como âncora
+		local rootPart = character:FindFirstChild("HumanoidRootPart")
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+		if not (rootPart and humanoid and humanoid.Health > 0) then
+			continue -- Pula se o jogador não tiver as partes necessárias ou estiver morto
+		end
+
+		-- [MUDANÇA 2]: Pegamos a posição 3D do centro do corpo e convertemos para 2D
+		local position3D = rootPart.Position
+		local position2D, onScreen = camera:WorldToScreenPoint(position3D)
+
+		-- Só desenha se o centro do jogador estiver na tela
+		if onScreen then
+			local lines = getOrCreateDrawings(player)
+
+			-- [MUDANÇA 3]: Calculamos o tamanho da caixa com base na distância
+			local distance = (camera.CFrame.Position - position3D).Magnitude
+			
+			-- Fórmula para o tamanho: quanto mais longe, menor a caixa.
+			-- Você pode ajustar o '2000' para deixar a caixa maior ou menor no geral.
+			local boxSize = math.clamp(2000 / distance, 20, 250) 
+			
+			-- Posição do canto superior esquerdo da caixa
+			local topLeft = Vector2.new(position2D.X - boxSize / 2, position2D.Y - boxSize / 2)
+
+			-- Desenha as 4 linhas da caixa
+			lines.Top.From = topLeft
+			lines.Top.To = Vector2.new(topLeft.X + boxSize, topLeft.Y)
+
+			lines.Bottom.From = Vector2.new(topLeft.X, topLeft.Y + boxSize)
+			lines.Bottom.To = Vector2.new(topLeft.X + boxSize, topLeft.Y + boxSize)
+
+			lines.Left.From = topLeft
+			lines.Left.To = Vector2.new(topLeft.X, topLeft.Y + boxSize)
+
+			lines.Right.From = Vector2.new(topLeft.X + boxSize, topLeft.Y)
+			lines.Right.To = Vector2.new(topLeft.X + boxSize, topLeft.Y + boxSize)
+
+			-- Torna todas as linhas da caixa visíveis
+			for _, line in pairs(lines) do
+				line.Visible = true
+			end
+		end
+	end
+end
 
 -- ===================================================================
 -- 4. LÓGICA PARA ARRASTAR A JANELA
@@ -153,15 +159,7 @@ makeDraggable(mainFrame, titleContainer)
 -- ===================================================================
 -- 5. CONEXÕES DE EVENTOS
 -- ===================================================================
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed or input.KeyCode ~= CONFIG.TOGGLE_UI_KEY then return end
-	isUiVisible = not isUiVisible
-	mainFrame.Visible = isUiVisible
-	if isUiVisible then
-		mainFrame.Position = lastUIPosition
-		populatePlayerList()
-	end
-end)
+UserInputService.InputBegan:Connect(function(input, gameProcessed) if gameProcessed or input.KeyCode ~= CONFIG.TOGGLE_UI_KEY then return end; isUiVisible = not isUiVisible; mainFrame.Visible = isUiVisible; if isUiVisible then mainFrame.Position = lastUIPosition; populatePlayerList() end end)
 toggleAllOnButton.MouseButton1Click:Connect(function() for _, player in ipairs(Players:GetPlayers()) do if player ~= localPlayer then espTargets[player] = true end end; populatePlayerList() end)
 toggleAllOffButton.MouseButton1Click:Connect(function() for _, player in ipairs(Players:GetPlayers()) do if player ~= localPlayer then espTargets[player] = false end end; populatePlayerList() end)
 refreshButton.MouseButton1Click:Connect(populatePlayerList)

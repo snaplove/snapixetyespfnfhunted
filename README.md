@@ -43,7 +43,7 @@ local CONFIG = {
 local isUiVisible = false
 local espTargets = {}
 local espDrawings = {}
-local lastUIPosition = UDim2.new(0, 0, 0, 0)
+local lastUIPosition = UDim2.new(0.5, 0, 0.5, 0)
 
 -- ===================================================================
 -- 1. CRIAÇÃO DA INTERFACE GRÁFICA (GUI) - TEMA "NEBULA"
@@ -116,7 +116,7 @@ local function updateEsp()
 		-- [MUDANÇA 2 - CENTRALIZAÇÃO]: Calculamos o centro da caixa.
 		-- A posição do rootPart (pélvis) + um pequeno deslocamento para cima (1 stud)
 		-- move o centro da caixa para o meio do torso, que fica visualmente perfeito.
-		local boxCenter3D = rootPart.Position + Vector3.new(0, 1, 0)
+		local boxCenter3D = rootPart.Position + Vector3.new(0, 0, 0)
 
 		-- Convertemos o centro 3D para a posição 2D na tela
 		local boxCenter2D, onScreen = camera:WorldToScreenPoint(boxCenter3D)
@@ -128,7 +128,7 @@ local function updateEsp()
 			local distance = (camera.CFrame.Position - rootPart.Position).Magnitude
 			
 			-- Fórmula para o tamanho. Você pode ajustar o '3000' para maior/menor.
-			local boxHeight = math.clamp(3000 / distance, 20, 300) 
+			local boxHeight = math.clamp(5000 / distance, 20, 300) 
 			-- A largura é metade da altura, uma proporção ideal para personagens R6.
 			local boxWidth = boxHeight / 2 
 

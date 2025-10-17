@@ -43,7 +43,7 @@ local CONFIG = {
 local isUiVisible = false
 local espTargets = {}
 local espDrawings = {}
-local lastUIPosition = UDim2.new(0.5, 0, 0.5, 0)
+local lastUIPosition = UDim2.new(0, 0, 0, 0)
 
 -- ===================================================================
 -- 1. CRIAÇÃO DA INTERFACE GRÁFICA (GUI) - TEMA "NEBULA"

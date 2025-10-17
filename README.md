@@ -15,7 +15,7 @@
 	- ESTABILIDADE MÁXIMA: Focado exclusivamente na funcionalidade principal do
 	  painel de controle e do ESP.
 ]]
-
+--a
 -- ===================================================================
 -- SERVIÇOS E VARIÁVEIS GLOBAIS
 -- ===================================================================

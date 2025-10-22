@@ -1,5 +1,5 @@
 --[[
-	SNAP ESP - BUILD "GLASS" v2.2 (Full Model Revert)
+	SNAP ESP - BUILD "GLASS" v2.3 (Robust BoundingBox)
 	-------------------------------------------------------------
 	Autor: [snap] & Assistente AI
 	Data: [akak]
@@ -8,12 +8,11 @@
 	Versão final e polida, com todos os ajustes de alinhamento e
 	feedback visual implementados.
 
-	CHANGELOG (v2.2):
-	- [REVERSÃO] O alvo do ESP foi revertido para usar :GetBoundingBox(),
-	  fazendo a caixa englobar o modelo inteiro do jogador, como na v2.0.
-
-	CHANGELOG (v2.1):
-	- O alvo do ESP foi alterado para a "PrimaryPart" do modelo do jogador.
+	CHANGELOG (v2.3):
+	- BOX CONFIÁVEL: Substituído o :GetBoundingBox() padrão por uma função
+	  manual que calcula a caixa delimitadora do personagem. Isso garante
+	  que o ESP sempre englobe o modelo inteiro (corpo + acessórios),
+	  corrigindo o bug onde a caixa aparecia apenas na cabeça em alguns jogos.
 
 	CHANGELOG (v2.0):
 	- BOTÕES AJUSTADOS: Os botões 'ALL' e 'NONE' foram deslocados para
@@ -21,7 +20,7 @@
 ]]
 
 -- ===================================================================
--- SERVIÇOS E VARIÁVEIS GLOBAIS
+-- SERVIços E VARIÁVEIS GLOBAIS
 -- ===================================================================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -121,48 +120,53 @@ local function updateToggleButton(button, isEnabled) local targetColor = isEnabl
 local function applyDynamicHoverEffect(button, player) button.MouseEnter:Connect(function() local isEnabled = espTargets[player]; local baseColor = isEnabled and COLORS.Accent or COLORS.Red; local hoverColor = baseColor:Lerp(Color3.new(1, 1, 1), 0.2); TweenService:Create(button, TweenInfo.new(0.2), { BackgroundColor3 = hoverColor }):Play() end); button.MouseLeave:Connect(function() local isEnabled = espTargets[player]; local baseColor = isEnabled and COLORS.Accent or COLORS.Red; TweenService:Create(button, TweenInfo.new(0.2), { BackgroundColor3 = baseColor }):Play() end) end
 local function populatePlayerList() for _, child in ipairs(scrollingFrame:GetChildren()) do if child:IsA("Frame") or child:IsA("TextLabel") then child:Destroy() end end; local playerCount = 0; for _, player in ipairs(Players:GetPlayers()) do if player == localPlayer then continue end; playerCount = playerCount + 1; local playerFrame = playerTemplate:Clone(); playerFrame.Name = player.Name; playerFrame.TextContainer.DisplayName.Text = player.DisplayName; playerFrame.TextContainer.UserName.Text = "(@" .. player.Name .. ")"; local content, isReady = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48); if isReady then playerFrame.Icon.Image = content end; if espTargets[player] == nil then espTargets[player] = false end; local isEnabled = espTargets[player]; playerFrame.ESPToggle.Text = isEnabled and "ON" or "OFF"; playerFrame.ESPToggle.BackgroundColor3 = isEnabled and COLORS.Accent or COLORS.Red; playerFrame.ESPToggle.TextColor3 = isEnabled and COLORS.Background or COLORS.Text; playerFrame.ESPToggle.MouseButton1Click:Connect(function() espTargets[player] = not espTargets[player]; updateToggleButton(playerFrame.ESPToggle, espTargets[player]) end); applyDynamicHoverEffect(playerFrame.ESPToggle, player); playerFrame.Parent = scrollingFrame end; local itemHeight = playerTemplate.Size.Y.Offset; local padding = uiListLayout.Padding.Offset; scrollingFrame.CanvasSize = UDim2.fromOffset(0, (itemHeight * playerCount) + (padding * (playerCount))) end
 local function getOrCreateDrawings(player) if espDrawings[player] then return espDrawings[player] end; local newDrawings = { Top = Drawing.new("Line"), Bottom = Drawing.new("Line"), Left = Drawing.new("Line"), Right = Drawing.new("Line") }; for _, line in pairs(newDrawings) do line.Color = CONFIG.BOX_COLOR; line.Thickness = CONFIG.THICKNESS; line.ZIndex = 2; line.Visible = false end; espDrawings[player] = newDrawings; return newDrawings end
-local function updateEsp() for _, drawings in pairs(espDrawings) do for _, line in pairs(drawings) do line.Visible = false end end; for player, isEnabled in pairs(espTargets) do if not isEnabled then continue end; 
-		
-		local character = player.Character
-		-- [MODIFICAÇÃO] Retornamos ao método GetBoundingBox para englobar o modelo inteiro.
-		if not (character and character:FindFirstChild("HumanoidRootPart") and player.Parent) then continue end
-		
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		if not (humanoid and humanoid.Health > 0) then continue end
-		
-		-- Esta linha agora pega a caixa que envolve o modelo completo.
-		local cframe, size = character:GetBoundingBox()
 
-		local corners, minX, maxX, minY, maxY = {}, math.huge, -math.huge, math.huge, -math.huge
-		local pointsOnScreen = 0; local halfSize = size / 2
-		for x = -1, 1, 2 do for y = -1, 1, 2 do for z = -1, 1, 2 do 
-			table.insert(corners, cframe * Vector3.new(halfSize.X * x, halfSize.Y * y, halfSize.Z * z)) 
-		end end end
-		
-		for _, pos3D in ipairs(corners) do 
-			local pos2D, onScreen = camera:WorldToScreenPoint(pos3D)
-			if onScreen and pos2D.Z > 0 then 
-				pointsOnScreen = pointsOnScreen + 1
-				minX = math.min(minX, pos2D.X)
-				maxX = math.max(maxX, pos2D.X)
-				minY = math.min(minY, pos2D.Y)
-				maxY = math.max(maxY, pos2D.Y) 
-			end 
+-- ===================================================================
+-- [NOVA FUNÇÃO] Calcula a Bounding Box manualmente para mais precisão
+-- ===================================================================
+local function getManualBoundingBox(model)
+	local min, max = Vector3.new(math.huge, math.huge, math.huge), Vector3.new(-math.huge, -math.huge, -math.huge)
+	local hasParts = false
+	
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			hasParts = true
+			local cf, size = descendant.CFrame, descendant.Size
+			local halfSize = size / 2
+			
+			local corners = {
+				cf * CFrame.new( halfSize.X,  halfSize.Y,  halfSize.Z).Position,
+				cf * CFrame.new( halfSize.X,  halfSize.Y, -halfSize.Z).Position,
+				cf * CFrame.new( halfSize.X, -halfSize.Y,  halfSize.Z).Position,
+				cf * CFrame.new( halfSize.X, -halfSize.Y, -halfSize.Z).Position,
+				cf * CFrame.new(-halfSize.X,  halfSize.Y,  halfSize.Z).Position,
+				cf * CFrame.new(-halfSize.X,  halfSize.Y, -halfSize.Z).Position,
+				cf * CFrame.new(-halfSize.X, -halfSize.Y,  halfSize.Z).Position,
+				cf * CFrame.new(-halfSize.X, -halfSize.Y, -halfSize.Z).Position
+			}
+			
+			for _, corner in ipairs(corners) do
+				min = Vector3.new(math.min(min.X, corner.X), math.min(min.Y, corner.Y), math.min(min.Z, corner.Z))
+				max = Vector3.new(math.max(max.X, corner.X), math.max(max.Y, corner.Y), math.max(max.Z, corner.Z))
+			end
 		end
-		
-		if pointsOnScreen > 0 then 
-			local lines = getOrCreateDrawings(player)
-			local topLeft = Vector2.new(minX, minY)
-			local boxWidth = maxX - minX
-			local boxHeight = maxY - minY
-			lines.Top.From = topLeft; lines.Top.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y); 
-			lines.Bottom.From = Vector2.new(topLeft.X, topLeft.Y + boxHeight); lines.Bottom.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y + boxHeight); 
-			lines.Left.From = topLeft; lines.Left.To = Vector2.new(topLeft.X, topLeft.Y + boxHeight); 
-			lines.Right.From = Vector2.new(topLeft.X + boxWidth, topLeft.Y); lines.Right.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y + boxHeight); 
-			for _, line in pairs(lines) do line.Visible = true end 
-		end 
-	end 
+	end
+	
+	if not hasParts then return nil, nil end
+	
+	local center = (min + max) / 2
+	local size = max - min
+	return CFrame.new(center), size
 end
+
+
+local function updateEsp() for _, drawings in pairs(espDrawings) do for _, line in pairs(drawings) do line.Visible = false end end; for player, isEnabled in pairs(espTargets) do if not isEnabled then continue end; local character = player.Character; if not (character and character:FindFirstChild("HumanoidRootPart") and player.Parent) then continue end; local humanoid = character:FindFirstChildOfClass("Humanoid"); if not (humanoid and humanoid.Health > 0) then continue end; 
+		
+		-- [MODIFICAÇÃO] Usando a nova função manual para garantir a precisão da caixa
+		local cframe, size = getManualBoundingBox(character)
+		if not cframe or not size then continue end -- Pula se o personagem não tiver partes
+
+		local corners, minX, maxX, minY, maxY = {}, math.huge, -math.huge, math.huge, -math.huge; local pointsOnScreen = 0; local halfSize = size / 2; for x = -1, 1, 2 do for y = -1, 1, 2 do for z = -1, 1, 2 do table.insert(corners, cframe * Vector3.new(halfSize.X * x, halfSize.Y * y, halfSize.Z * z)) end end end; for _, pos3D in ipairs(corners) do local pos2D, onScreen = camera:WorldToScreenPoint(pos3D); if onScreen and pos2D.Z > 0 then pointsOnScreen = pointsOnScreen + 1; minX = math.min(minX, pos2D.X); maxX = math.max(maxX, pos2D.X); minY = math.min(minY, pos2D.Y); maxY = math.max(maxY, pos2D.Y) end end; if pointsOnScreen > 0 then local lines = getOrCreateDrawings(player); local topLeft = Vector2.new(minX, minY); local boxWidth = maxX - minX; local boxHeight = maxY - minY; lines.Top.From = topLeft; lines.Top.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y); lines.Bottom.From = Vector2.new(topLeft.X, topLeft.Y + boxHeight); lines.Bottom.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y + boxHeight); lines.Left.From = topLeft; lines.Left.To = Vector2.new(topLeft.X, topLeft.Y + boxHeight); lines.Right.From = Vector2.new(topLeft.X + boxWidth, topLeft.Y); lines.Right.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y + boxHeight); for _, line in pairs(lines) do line.Visible = true end end end end
 local function makeDraggable(guiObject, dragHandle) local dragging = false; local dragStart = nil; local startPos = nil; dragHandle.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true; dragStart = input.Position; startPos = guiObject.Position; input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false; lastUIPosition = guiObject.Position end end) end end); UserInputService.InputChanged:Connect(function(input) if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragging then local delta = input.Position - dragStart; guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end) end
 local function updateWalkSpeed(speed) local clampedSpeed = math.clamp(tonumber(speed) or CONFIG.DEFAULT_WALKSPEED, 0, CONFIG.MAX_WALKSPEED); if localPlayer.Character and localPlayer.Character:FindFirstChildOfClass("Humanoid") then localPlayer.Character.Humanoid.WalkSpeed = clampedSpeed end; local percentage = (clampedSpeed - CONFIG.DEFAULT_WALKSPEED) / (CONFIG.MAX_WALKSPEED - CONFIG.DEFAULT_WALKSPEED); percentage = math.clamp(percentage, 0, 1); speedInput.Text = tostring(math.floor(clampedSpeed)); TweenService:Create(sliderFill, TweenInfo.new(0.1), { Size = UDim2.fromScale(percentage, 1) }):Play(); TweenService:Create(sliderHandle, TweenInfo.new(0.1), { Position = UDim2.fromScale(percentage, 0.5) }):Play() end
 local function makeSliderDraggable(handle, track) handle.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then local dragging = true; local connection; connection = UserInputService.InputChanged:Connect(function(subInput) if (subInput.UserInputType == Enum.UserInputType.MouseMovement or subInput.UserInputType == Enum.UserInputType.Touch) and dragging then local mousePos = UserInputService:GetMouseLocation(); local relativePos = mousePos.X - track.AbsolutePosition.X; local percentage = math.clamp(relativePos / track.AbsoluteSize.X, 0, 1); local newSpeed = CONFIG.DEFAULT_WALKSPEED + (percentage * (CONFIG.MAX_WALKSPEED - CONFIG.DEFAULT_WALKSPEED)); updateWalkSpeed(newSpeed) end end); local inputEndedConn; inputEndedConn = UserInputService.InputEnded:Connect(function(endInput) if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then dragging = false; connection:Disconnect(); inputEndedConn:Disconnect() end end) end end) end

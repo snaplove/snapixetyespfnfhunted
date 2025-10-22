@@ -1,16 +1,16 @@
 --[[
-	SNAP ESP - BUILD "GLASS" v1.9 (Final Clean)
+	SNAP ESP - BUILD "GLASS" v2.0 (Final Polish)
 	-------------------------------------------------------------
 	Autor: [Seu Nome] & Assistente AI
 	Data: [Data Atual]
 
 	DESCRIÇÃO:
-	Versão final limpa. Remove todos os elementos visuais adicionais
-	para uma experiência minimalista.
+	Versão final e polida, com todos os ajustes de alinhamento e
+	feedback visual implementados.
 
-	CHANGELOG (v1.9):
-	- REMOÇÃO: O indicador de lista vazia (⊕) foi completamente removido
-	  da lista de jogadores, conforme solicitado.
+	CHANGELOG (v2.0):
+	- BOTÕES AJUSTADOS: Os botões 'ALL' e 'NONE' foram deslocados para
+	  a esquerda para melhor espaçamento visual e acabamento.
 ]]
 
 -- ===================================================================
@@ -84,8 +84,11 @@ local resetButton = Instance.new("TextButton", rightControls); resetButton.Layou
 local playersFrame = Instance.new("Frame", contentContainer); playersFrame.Name = "PlayersSection"; playersFrame.LayoutOrder = 2; playersFrame.Size = UDim2.new(1, 0, 1, -110); playersFrame.BackgroundColor3 = COLORS.Primary; playersFrame.BorderSizePixel = 0; Instance.new("UICorner", playersFrame).CornerRadius = UDim.new(0, 6); Instance.new("UIStroke", playersFrame).Color = COLORS.Stroke
 local playersHeader = Instance.new("Frame", playersFrame); playersHeader.Name = "Header"; playersHeader.Size = UDim2.new(1, 0, 0, 35); playersHeader.BackgroundTransparency = 1; Instance.new("UIPadding", playersHeader).PaddingLeft = UDim.new(0, 10); Instance.new("UIPadding", playersHeader).PaddingRight = UDim.new(0, 10)
 local playersTitle = Instance.new("TextLabel", playersHeader); playersTitle.Name = "Title"; playersTitle.Size = UDim2.new(1, -100, 1, 0); playersTitle.AnchorPoint = Vector2.new(0, 0.5); playersTitle.Position = UDim2.fromScale(0, 0.5); playersTitle.Text = "Players"; playersTitle.Font = FONT_SETTINGS.Font; playersTitle.TextSize = FONT_SETTINGS.RegularSize; playersTitle.TextColor3 = COLORS.Text; playersTitle.TextXAlignment = Enum.TextXAlignment.Left; playersTitle.BackgroundTransparency = 1
-local toggleAllOnButton = Instance.new("TextButton", playersHeader); toggleAllOnButton.Name = "ToggleAllOn"; toggleAllOnButton.Size = UDim2.new(0, 40, 0, 24); toggleAllOnButton.AnchorPoint = Vector2.new(1, 0.5); toggleAllOnButton.Position = UDim2.new(1, -50, 0.5, 0); toggleAllOnButton.BackgroundColor3 = COLORS.Accent; toggleAllOnButton.Font = FONT_SETTINGS.Font; toggleAllOnButton.Text = "ALL"; toggleAllOnButton.TextColor3 = COLORS.Text; toggleAllOnButton.TextSize = FONT_SETTINGS.SmallSize; Instance.new("UICorner", toggleAllOnButton).CornerRadius = UDim.new(0, 4); Instance.new("UIStroke", toggleAllOnButton).Color = COLORS.Stroke
-local toggleAllOffButton = Instance.new("TextButton", playersHeader); toggleAllOffButton.Name = "ToggleAllOff"; toggleAllOffButton.Size = UDim2.new(0, 40, 0, 24); toggleAllOffButton.AnchorPoint = Vector2.new(1, 0.5); toggleAllOffButton.Position = UDim2.new(1, 0, 0.5, 0); toggleAllOffButton.BackgroundColor3 = COLORS.Red; toggleAllOffButton.Font = FONT_SETTINGS.Font; toggleAllOffButton.Text = "NONE"; toggleAllOffButton.TextColor3 = COLORS.Text; toggleAllOffButton.TextSize = FONT_SETTINGS.SmallSize; Instance.new("UICorner", toggleAllOffButton).CornerRadius = UDim.new(0, 4); Instance.new("UIStroke", toggleAllOffButton).Color = COLORS.Stroke
+
+-- [AJUSTE] Botões movidos 10 pixels para a esquerda para melhor espaçamento
+local toggleAllOnButton = Instance.new("TextButton", playersHeader); toggleAllOnButton.Name = "ToggleAllOn"; toggleAllOnButton.Size = UDim2.new(0, 40, 0, 24); toggleAllOnButton.AnchorPoint = Vector2.new(1, 0.5); toggleAllOnButton.Position = UDim2.new(1, -60, 0.5, 0); toggleAllOnButton.BackgroundColor3 = COLORS.Accent; toggleAllOnButton.Font = FONT_SETTINGS.Font; toggleAllOnButton.Text = "ALL"; toggleAllOnButton.TextColor3 = COLORS.Text; toggleAllOnButton.TextSize = FONT_SETTINGS.SmallSize; Instance.new("UICorner", toggleAllOnButton).CornerRadius = UDim.new(0, 4); Instance.new("UIStroke", toggleAllOnButton).Color = COLORS.Stroke
+local toggleAllOffButton = Instance.new("TextButton", playersHeader); toggleAllOffButton.Name = "ToggleAllOff"; toggleAllOffButton.Size = UDim2.new(0, 40, 0, 24); toggleAllOffButton.AnchorPoint = Vector2.new(1, 0.5); toggleAllOffButton.Position = UDim2.new(1, -10, 0.5, 0); toggleAllOffButton.BackgroundColor3 = COLORS.Red; toggleAllOffButton.Font = FONT_SETTINGS.Font; toggleAllOffButton.Text = "NONE"; toggleAllOffButton.TextColor3 = COLORS.Text; toggleAllOffButton.TextSize = FONT_SETTINGS.SmallSize; Instance.new("UICorner", toggleAllOffButton).CornerRadius = UDim.new(0, 4); Instance.new("UIStroke", toggleAllOffButton).Color = COLORS.Stroke
+
 local scrollingFrame = Instance.new("ScrollingFrame", playersFrame); scrollingFrame.Name = "PlayerList"; scrollingFrame.Size = UDim2.new(1, 0, 1, -35); scrollingFrame.Position = UDim2.new(0, 0, 0, 35); scrollingFrame.BackgroundTransparency = 1; scrollingFrame.BorderSizePixel = 0; scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0); scrollingFrame.ScrollBarImageColor3 = COLORS.Accent; scrollingFrame.ScrollBarThickness = 4
 local listPadding = Instance.new("UIPadding", scrollingFrame); listPadding.PaddingLeft = UDim.new(0, 10); listPadding.PaddingRight = UDim.new(0, 10); listPadding.PaddingTop = UDim.new(0, 5)
 local uiListLayout = Instance.new("UIListLayout", scrollingFrame); uiListLayout.Padding = UDim.new(0, 5); uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder

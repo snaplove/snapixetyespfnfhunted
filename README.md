@@ -1,8 +1,8 @@
 --[[
 	SNAP ESP - BUILD "GLASS" v2.0 (Final Polish)
 	-------------------------------------------------------------
-	Autor: [Seu Nome] & Assistente AI
-	Data: [Data Atual]
+	Autor: [snap] & Assistente AI
+	Data: [akak]
 
 	DESCRIÇÃO:
 	Versão final e polida, com todos os ajustes de alinhamento e
@@ -34,7 +34,7 @@ local CONFIG = {
 	BOX_COLOR = Color3.fromRGB(0, 200, 255),
 	THICKNESS = 2,
 	DEFAULT_WALKSPEED = 16,
-	MAX_WALKSPEED = 150
+	MAX_WALKSPEED = 50
 }
 
 -- ===================================================================

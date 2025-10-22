@@ -1,5 +1,5 @@
 --[[
-	SNAP ESP - BUILD "GLASS" v2.1 (PrimaryPart Target)
+	SNAP ESP - BUILD "GLASS" v2.2 (Full Model Revert)
 	-------------------------------------------------------------
 	Autor: [snap] & Assistente AI
 	Data: [akak]
@@ -8,10 +8,12 @@
 	Versão final e polida, com todos os ajustes de alinhamento e
 	feedback visual implementados.
 
+	CHANGELOG (v2.2):
+	- [REVERSÃO] O alvo do ESP foi revertido para usar :GetBoundingBox(),
+	  fazendo a caixa englobar o modelo inteiro do jogador, como na v2.0.
+
 	CHANGELOG (v2.1):
-	- [MODIFICAÇÃO] O alvo do ESP agora é a "PrimaryPart" do modelo do jogador
-	  (geralmente o HumanoidRootPart), resultando em uma caixa mais precisa
-	  e centralizada no torso do personagem, em vez de no modelo inteiro.
+	- O alvo do ESP foi alterado para a "PrimaryPart" do modelo do jogador.
 
 	CHANGELOG (v2.0):
 	- BOTÕES AJUSTADOS: Os botões 'ALL' e 'NONE' foram deslocados para
@@ -90,7 +92,6 @@ local playersFrame = Instance.new("Frame", contentContainer); playersFrame.Name 
 local playersHeader = Instance.new("Frame", playersFrame); playersHeader.Name = "Header"; playersHeader.Size = UDim2.new(1, 0, 0, 35); playersHeader.BackgroundTransparency = 1; Instance.new("UIPadding", playersHeader).PaddingLeft = UDim.new(0, 10); Instance.new("UIPadding", playersHeader).PaddingRight = UDim.new(0, 10)
 local playersTitle = Instance.new("TextLabel", playersHeader); playersTitle.Name = "Title"; playersTitle.Size = UDim2.new(1, -100, 1, 0); playersTitle.AnchorPoint = Vector2.new(0, 0.5); playersTitle.Position = UDim2.fromScale(0, 0.5); playersTitle.Text = "Players"; playersTitle.Font = FONT_SETTINGS.Font; playersTitle.TextSize = FONT_SETTINGS.RegularSize; playersTitle.TextColor3 = COLORS.Text; playersTitle.TextXAlignment = Enum.TextXAlignment.Left; playersTitle.BackgroundTransparency = 1
 
--- [AJUSTE] Botões movidos 10 pixels para a esquerda para melhor espaçamento
 local toggleAllOnButton = Instance.new("TextButton", playersHeader); toggleAllOnButton.Name = "ToggleAllOn"; toggleAllOnButton.Size = UDim2.new(0, 40, 0, 24); toggleAllOnButton.AnchorPoint = Vector2.new(1, 0.5); toggleAllOnButton.Position = UDim2.new(1, -60, 0.5, 0); toggleAllOnButton.BackgroundColor3 = COLORS.Accent; toggleAllOnButton.Font = FONT_SETTINGS.Font; toggleAllOnButton.Text = "ALL"; toggleAllOnButton.TextColor3 = COLORS.Text; toggleAllOnButton.TextSize = FONT_SETTINGS.SmallSize; Instance.new("UICorner", toggleAllOnButton).CornerRadius = UDim.new(0, 4); Instance.new("UIStroke", toggleAllOnButton).Color = COLORS.Stroke
 local toggleAllOffButton = Instance.new("TextButton", playersHeader); toggleAllOffButton.Name = "ToggleAllOff"; toggleAllOffButton.Size = UDim2.new(0, 40, 0, 24); toggleAllOffButton.AnchorPoint = Vector2.new(1, 0.5); toggleAllOffButton.Position = UDim2.new(1, -10, 0.5, 0); toggleAllOffButton.BackgroundColor3 = COLORS.Red; toggleAllOffButton.Font = FONT_SETTINGS.Font; toggleAllOffButton.Text = "NONE"; toggleAllOffButton.TextColor3 = COLORS.Text; toggleAllOffButton.TextSize = FONT_SETTINGS.SmallSize; Instance.new("UICorner", toggleAllOffButton).CornerRadius = UDim.new(0, 4); Instance.new("UIStroke", toggleAllOffButton).Color = COLORS.Stroke
 
@@ -123,22 +124,20 @@ local function getOrCreateDrawings(player) if espDrawings[player] then return es
 local function updateEsp() for _, drawings in pairs(espDrawings) do for _, line in pairs(drawings) do line.Visible = false end end; for player, isEnabled in pairs(espTargets) do if not isEnabled then continue end; 
 		
 		local character = player.Character
-		-- [MODIFICAÇÃO] O alvo agora é a PrimaryPart (geralmente o HumanoidRootPart)
-		local primaryPart = character and character.PrimaryPart
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		-- [MODIFICAÇÃO] Retornamos ao método GetBoundingBox para englobar o modelo inteiro.
+		if not (character and character:FindFirstChild("HumanoidRootPart") and player.Parent) then continue end
+		
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if not (humanoid and humanoid.Health > 0) then continue end
+		
+		-- Esta linha agora pega a caixa que envolve o modelo completo.
+		local cframe, size = character:GetBoundingBox()
 
-		-- Verifica se o jogador está válido no jogo, se tem a parte primária e se está vivo
-		if not (player.Parent and primaryPart and humanoid and humanoid.Health > 0) then continue end
-
-		-- Usa o CFrame e o Tamanho do PrimaryPart em vez do BoundingBox do modelo inteiro
-		local cframe = primaryPart.CFrame
-		local size = primaryPart.Size
-
-		local corners, minX, maxX, minY, maxY = {}, math.huge, -math.huge, math.huge, -math.huge; 
-		local pointsOnScreen = 0; local halfSize = size / 2; 
+		local corners, minX, maxX, minY, maxY = {}, math.huge, -math.huge, math.huge, -math.huge
+		local pointsOnScreen = 0; local halfSize = size / 2
 		for x = -1, 1, 2 do for y = -1, 1, 2 do for z = -1, 1, 2 do 
 			table.insert(corners, cframe * Vector3.new(halfSize.X * x, halfSize.Y * y, halfSize.Z * z)) 
-		end end end; 
+		end end end
 		
 		for _, pos3D in ipairs(corners) do 
 			local pos2D, onScreen = camera:WorldToScreenPoint(pos3D)
@@ -149,7 +148,7 @@ local function updateEsp() for _, drawings in pairs(espDrawings) do for _, line 
 				minY = math.min(minY, pos2D.Y)
 				maxY = math.max(maxY, pos2D.Y) 
 			end 
-		end; 
+		end
 		
 		if pointsOnScreen > 0 then 
 			local lines = getOrCreateDrawings(player)

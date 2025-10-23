@@ -1,5 +1,5 @@
 --[[
-	SNAP ESP - BUILD "GLASS" v2.5 (Forced WalkSpeed)
+	SNAP ESP - BUILD "GLASS" v2.6 (Smart Speed Control)
 	-------------------------------------------------------------
 	Autor: [snap] & Assistente AI
 	Data: [akak]
@@ -8,15 +8,16 @@
 	Versão final e polida, com todos os ajustes de alinhamento e
 	feedback visual implementados.
 
+	CHANGELOG (v2.6):
+	- CONTROLE DE VELOCIDADE INTELIGENTE: O script agora atua como uma
+	  "trava de velocidade mínima". Ele só aumentará sua velocidade se
+	  ela cair abaixo do valor configurado. Se o jogo te der um "boost"
+	  (velocidade maior que a configurada), o script não irá interferir,
+	  permitindo que você aproveite o aumento de velocidade temporário.
+
 	CHANGELOG (v2.5):
 	- WALKSPEED FORÇADO: A velocidade do jogador agora é verificada e
-	  reaplicada a cada frame. Isso impede que outros scripts do jogo
-	  (como anti-cheat ou scripts de corrida) resetem a sua velocidade,
-	  garantindo que o valor escolhido seja mantido permanentemente.
-
-	CHANGELOG (v2.4):
-	- ESP PERFEITO: A caixa do ESP agora é centrada na PrimaryPart,
-	  mas com o tamanho do modelo inteiro, criando um visual estável.
+	  reaplicada a cada frame, impedindo que seja resetada por outros scripts.
 ]]
 
 -- ===================================================================
@@ -50,7 +51,7 @@ local isUiVisible = false
 local espTargets = {}
 local espDrawings = {}
 local lastUIPosition = UDim2.new(0.5, 0, 0.5, 0)
-local currentWalkSpeedValue = CONFIG.DEFAULT_WALKSPEED -- [NOVO] Variável para guardar a velocidade desejada
+local currentWalkSpeedValue = CONFIG.DEFAULT_WALKSPEED
 
 -- ===================================================================
 -- 1. CRIAÇÃO DA INTERFACE GRÁFICA (GUI)
@@ -153,7 +154,7 @@ local function makeDraggable(guiObject, dragHandle) local dragging = false; loca
 
 local function updateWalkSpeed(speed)
 	local clampedSpeed = math.clamp(tonumber(speed) or CONFIG.DEFAULT_WALKSPEED, 0, CONFIG.MAX_WALKSPEED)
-	currentWalkSpeedValue = clampedSpeed -- [MODIFICADO] Atualiza a variável global com o valor validado
+	currentWalkSpeedValue = clampedSpeed
 	if localPlayer.Character and localPlayer.Character:FindFirstChildOfClass("Humanoid") then
 		localPlayer.Character.Humanoid.WalkSpeed = clampedSpeed
 	end
@@ -166,12 +167,14 @@ end
 
 local function makeSliderDraggable(handle, track) handle.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then local dragging = true; local connection; connection = UserInputService.InputChanged:Connect(function(subInput) if (subInput.UserInputType == Enum.UserInputType.MouseMovement or subInput.UserInputType == Enum.UserInputType.Touch) and dragging then local mousePos = UserInputService:GetMouseLocation(); local relativePos = mousePos.X - track.AbsolutePosition.X; local percentage = math.clamp(relativePos / track.AbsoluteSize.X, 0, 1); local newSpeed = CONFIG.DEFAULT_WALKSPEED + (percentage * (CONFIG.MAX_WALKSPEED - CONFIG.DEFAULT_WALKSPEED)); updateWalkSpeed(newSpeed) end end); local inputEndedConn; inputEndedConn = UserInputService.InputEnded:Connect(function(endInput) if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then dragging = false; connection:Disconnect(); inputEndedConn:Disconnect() end end) end end) end
 
--- [NOVA FUNÇÃO] Força a WalkSpeed a cada frame
 local function forceWalkSpeed()
 	if localPlayer.Character and localPlayer.Character:FindFirstChildOfClass("Humanoid") then
 		local humanoid = localPlayer.Character.Humanoid
-		-- Só altera a propriedade se for realmente necessário, para otimização
-		if humanoid.WalkSpeed ~= currentWalkSpeedValue then
+		
+		-- [MODIFICAÇÃO CHAVE]
+		-- Se a velocidade atual for MENOR que a nossa, nós a corrigimos para cima.
+		-- Se for maior (ex: boost do jogo), nós não fazemos nada.
+		if humanoid.WalkSpeed < currentWalkSpeedValue then
 			humanoid.WalkSpeed = currentWalkSpeedValue
 		end
 	end
@@ -191,7 +194,6 @@ Players.PlayerAdded:Connect(function(player) task.wait(1); if mainFrame.Visible 
 Players.PlayerRemoving:Connect(function(player) if espTargets[player] then espTargets[player] = nil end; if espDrawings[player] then for _, line in pairs(espDrawings[player]) do line:Remove() end; espDrawings[player] = nil end; if mainFrame.Visible then populatePlayerList() end end)
 localPlayer.CharacterAdded:Connect(function(char) task.wait(0.5); updateWalkSpeed(currentWalkSpeedValue) end)
 
--- [MODIFICADO] Conexão principal que agora executa ambas as funções a cada frame
 RunService.RenderStepped:Connect(function()
 	updateEsp()
 	forceWalkSpeed()

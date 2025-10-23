@@ -1,5 +1,5 @@
 --[[
-	SNAP ESP - BUILD "GLASS" v2.6 (Smart Speed Control)
+	SNAP ESP - BUILD "GLASS" v2.7 (Adaptive & Synced WalkSpeed)
 	-------------------------------------------------------------
 	Autor: [snap] & Assistente AI
 	Data: [akak]
@@ -8,16 +8,17 @@
 	Versão final e polida, com todos os ajustes de alinhamento e
 	feedback visual implementados.
 
+	CHANGELOG (v2.7):
+	- WALKSPEED ADAPTATIVO E SINCRONIZADO: Corrigidos bugs críticos de lógica.
+		1. O script agora detecta e usa a velocidade padrão real do jogo.
+		2. A UI (slider e input) é atualizada em tempo real para refletir
+		   "boosts" de velocidade recebidos no jogo, mantendo tudo sincronizado.
+		3. O botão "Reset" agora redefine para a velocidade padrão do jogo,
+		   e não um valor fixo.
+
 	CHANGELOG (v2.6):
 	- CONTROLE DE VELOCIDADE INTELIGENTE: O script agora atua como uma
-	  "trava de velocidade mínima". Ele só aumentará sua velocidade se
-	  ela cair abaixo do valor configurado. Se o jogo te der um "boost"
-	  (velocidade maior que a configurada), o script não irá interferir,
-	  permitindo que você aproveite o aumento de velocidade temporário.
-
-	CHANGELOG (v2.5):
-	- WALKSPEED FORÇADO: A velocidade do jogador agora é verificada e
-	  reaplicada a cada frame, impedindo que seja resetada por outros scripts.
+	  "trava de velocidade mínima", não interferindo com boosts do jogo.
 ]]
 
 -- ===================================================================
@@ -40,8 +41,7 @@ local CONFIG = {
 	TOGGLE_UI_KEY = Enum.KeyCode.LeftAlt,
 	BOX_COLOR = Color3.fromRGB(0, 200, 255),
 	THICKNESS = 2,
-	DEFAULT_WALKSPEED = 16,
-	MAX_WALKSPEED = 50
+	MAX_WALKSPEED = 50 -- Mantemos o máximo para o slider, mas o padrão será detectado
 }
 
 -- ===================================================================
@@ -51,10 +51,13 @@ local isUiVisible = false
 local espTargets = {}
 local espDrawings = {}
 local lastUIPosition = UDim2.new(0.5, 0, 0.5, 0)
-local currentWalkSpeedValue = CONFIG.DEFAULT_WALKSPEED
+
+-- [MODIFICADO] Variáveis de controle de velocidade
+local gameDefaultWalkSpeed = 16 -- Valor inicial, será atualizado dinamicamente
+local currentWalkSpeedValue = 16 -- Velocidade mínima que queremos manter
 
 -- ===================================================================
--- 1. CRIAÇÃO DA INTERFACE GRÁFICA (GUI)
+-- 1. CRIAÇÃO DA INTERFACE GRÁFICA (GUI) - (Sem alterações nesta seção)
 -- ===================================================================
 local COLORS = { Background = Color3.fromRGB(20, 22, 30), Primary = Color3.fromRGB(35, 38, 50), Secondary = Color3.fromRGB(28, 30, 40), Stroke = Color3.fromRGB(80, 85, 100), Accent = Color3.fromRGB(0, 200, 255), Red = Color3.fromRGB(255, 80, 80), Text = Color3.fromRGB(255, 255, 255), SubText = Color3.fromRGB(170, 175, 190) }
 local FONT_SETTINGS = { Font = Enum.Font.GothamSemibold, TitleSize = 18, RegularSize = 14, SmallSize = 12 }
@@ -86,7 +89,7 @@ local walkspeedLabel = Instance.new("TextLabel", bottomControls); walkspeedLabel
 local spacer = Instance.new("Frame", bottomControls); spacer.LayoutOrder = 2; spacer.Name = "Spacer"; spacer.Size = UDim2.new(1, -165, 1, 0); spacer.BackgroundTransparency = 1
 local rightControls = Instance.new("Frame", bottomControls); rightControls.LayoutOrder = 3; rightControls.Name = "RightControls"; rightControls.Size = UDim2.new(0, 80, 1, 0); rightControls.BackgroundTransparency = 1
 local rightLayout = Instance.new("UIListLayout", rightControls); rightLayout.FillDirection = Enum.FillDirection.Horizontal; rightLayout.VerticalAlignment = Enum.VerticalAlignment.Center; rightLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right; rightLayout.Padding = UDim.new(0, 5)
-local speedInput = Instance.new("TextBox", rightControls); speedInput.LayoutOrder = 1; speedInput.Name = "Input"; speedInput.Size = UDim2.new(0, 45, 1, 0); speedInput.BackgroundColor3 = COLORS.Secondary; speedInput.Font = FONT_SETTINGS.Font; speedInput.Text = tostring(CONFIG.DEFAULT_WALKSPEED); speedInput.TextColor3 = COLORS.Text; speedInput.TextSize = FONT_SETTINGS.RegularSize; speedInput.ClearTextOnFocus = false; speedInput.TextXAlignment = Enum.TextXAlignment.Center; Instance.new("UICorner", speedInput).CornerRadius = UDim.new(0, 4); Instance.new("UIStroke", speedInput).Color = COLORS.Stroke
+local speedInput = Instance.new("TextBox", rightControls); speedInput.LayoutOrder = 1; speedInput.Name = "Input"; speedInput.Size = UDim2.new(0, 45, 1, 0); speedInput.BackgroundColor3 = COLORS.Secondary; speedInput.Font = FONT_SETTINGS.Font; speedInput.Text = tostring(gameDefaultWalkSpeed); speedInput.TextColor3 = COLORS.Text; speedInput.TextSize = FONT_SETTINGS.RegularSize; speedInput.ClearTextOnFocus = false; speedInput.TextXAlignment = Enum.TextXAlignment.Center; Instance.new("UICorner", speedInput).CornerRadius = UDim.new(0, 4); Instance.new("UIStroke", speedInput).Color = COLORS.Stroke
 local resetButton = Instance.new("TextButton", rightControls); resetButton.LayoutOrder = 2; resetButton.Name = "Reset"; resetButton.Size = UDim2.new(0, 30, 1, 0); resetButton.BackgroundColor3 = COLORS.Secondary; resetButton.Font = FONT_SETTINGS.Font; resetButton.Text = "R"; resetButton.TextColor3 = COLORS.Text; resetButton.TextSize = FONT_SETTINGS.RegularSize; Instance.new("UICorner", resetButton).CornerRadius = UDim.new(0, 4); Instance.new("UIStroke", resetButton).Color = COLORS.Stroke
 
 local playersFrame = Instance.new("Frame", contentContainer); playersFrame.Name = "PlayersSection"; playersFrame.LayoutOrder = 2; playersFrame.Size = UDim2.new(1, 0, 1, -110); playersFrame.BackgroundColor3 = COLORS.Primary; playersFrame.BorderSizePixel = 0; Instance.new("UICorner", playersFrame).CornerRadius = UDim.new(0, 6); Instance.new("UIStroke", playersFrame).Color = COLORS.Stroke
@@ -152,31 +155,40 @@ end
 local function updateEsp() for _, drawings in pairs(espDrawings) do for _, line in pairs(drawings) do line.Visible = false end end; for player, isEnabled in pairs(espTargets) do if not isEnabled then continue end; local character = player.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid"); local primaryPart = character and character.PrimaryPart; if not (player.Parent and humanoid and humanoid.Health > 0 and primaryPart) then continue end; local _, size = getManualBoundingBox(character); if not size then continue end; local cframe = primaryPart.CFrame; local corners, minX, maxX, minY, maxY = {}, math.huge, -math.huge, math.huge, -math.huge; local pointsOnScreen = 0; local halfSize = size / 2; for x = -1, 1, 2 do for y = -1, 1, 2 do for z = -1, 1, 2 do table.insert(corners, cframe * Vector3.new(halfSize.X * x, halfSize.Y * y, halfSize.Z * z)) end end end; for _, pos3D in ipairs(corners) do local pos2D, onScreen = camera:WorldToScreenPoint(pos3D); if onScreen and pos2D.Z > 0 then pointsOnScreen = pointsOnScreen + 1; minX = math.min(minX, pos2D.X); maxX = math.max(maxX, pos2D.X); minY = math.min(minY, pos2D.Y); maxY = math.max(maxY, pos2D.Y) end end; if pointsOnScreen > 0 then local lines = getOrCreateDrawings(player); local topLeft = Vector2.new(minX, minY); local boxWidth = maxX - minX; local boxHeight = maxY - minY; lines.Top.From = topLeft; lines.Top.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y); lines.Bottom.From = Vector2.new(topLeft.X, topLeft.Y + boxHeight); lines.Bottom.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y + boxHeight); lines.Left.From = topLeft; lines.Left.To = Vector2.new(topLeft.X, topLeft.Y + boxHeight); lines.Right.From = Vector2.new(topLeft.X + boxWidth, topLeft.Y); lines.Right.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y + boxHeight); for _, line in pairs(lines) do line.Visible = true end end end end
 local function makeDraggable(guiObject, dragHandle) local dragging = false; local dragStart = nil; local startPos = nil; dragHandle.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true; dragStart = input.Position; startPos = guiObject.Position; input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false; lastUIPosition = guiObject.Position end end) end end); UserInputService.InputChanged:Connect(function(input) if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragging then local delta = input.Position - dragStart; guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end) end
 
-local function updateWalkSpeed(speed)
-	local clampedSpeed = math.clamp(tonumber(speed) or CONFIG.DEFAULT_WALKSPEED, 0, CONFIG.MAX_WALKSPEED)
+-- [MODIFICADO] Esta função agora só define o VALOR MÍNIMO desejado. A UI será atualizada no loop.
+local function setWalkSpeed(speed)
+	local clampedSpeed = math.clamp(tonumber(speed) or gameDefaultWalkSpeed, 0, CONFIG.MAX_WALKSPEED)
 	currentWalkSpeedValue = clampedSpeed
-	if localPlayer.Character and localPlayer.Character:FindFirstChildOfClass("Humanoid") then
-		localPlayer.Character.Humanoid.WalkSpeed = clampedSpeed
-	end
-	local percentage = (clampedSpeed - CONFIG.DEFAULT_WALKSPEED) / (CONFIG.MAX_WALKSPEED - CONFIG.DEFAULT_WALKSPEED)
-	percentage = math.clamp(percentage, 0, 1)
-	speedInput.Text = tostring(math.floor(clampedSpeed))
-	TweenService:Create(sliderFill, TweenInfo.new(0.1), { Size = UDim2.fromScale(percentage, 1) }):Play()
-	TweenService:Create(sliderHandle, TweenInfo.new(0.1), { Position = UDim2.fromScale(percentage, 0.5) }):Play()
 end
 
-local function makeSliderDraggable(handle, track) handle.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then local dragging = true; local connection; connection = UserInputService.InputChanged:Connect(function(subInput) if (subInput.UserInputType == Enum.UserInputType.MouseMovement or subInput.UserInputType == Enum.UserInputType.Touch) and dragging then local mousePos = UserInputService:GetMouseLocation(); local relativePos = mousePos.X - track.AbsolutePosition.X; local percentage = math.clamp(relativePos / track.AbsoluteSize.X, 0, 1); local newSpeed = CONFIG.DEFAULT_WALKSPEED + (percentage * (CONFIG.MAX_WALKSPEED - CONFIG.DEFAULT_WALKSPEED)); updateWalkSpeed(newSpeed) end end); local inputEndedConn; inputEndedConn = UserInputService.InputEnded:Connect(function(endInput) if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then dragging = false; connection:Disconnect(); inputEndedConn:Disconnect() end end) end end) end
+local function makeSliderDraggable(handle, track) handle.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then local dragging = true; local connection; connection = UserInputService.InputChanged:Connect(function(subInput) if (subInput.UserInputType == Enum.UserInputType.MouseMovement or subInput.UserInputType == Enum.UserInputType.Touch) and dragging then local mousePos = UserInputService:GetMouseLocation(); local relativePos = mousePos.X - track.AbsolutePosition.X; local percentage = math.clamp(relativePos / track.AbsoluteSize.X, 0, 1); local newSpeed = gameDefaultWalkSpeed + (percentage * (CONFIG.MAX_WALKSPEED - gameDefaultWalkSpeed)); setWalkSpeed(newSpeed) end end); local inputEndedConn; inputEndedConn = UserInputService.InputEnded:Connect(function(endInput) if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then dragging = false; connection:Disconnect(); inputEndedConn:Disconnect() end end) end end) end
 
-local function forceWalkSpeed()
+-- [MODIFICADO] A função principal que gerencia a velocidade e a UI a cada frame
+local function syncAndForceWalkSpeed()
 	if localPlayer.Character and localPlayer.Character:FindFirstChildOfClass("Humanoid") then
 		local humanoid = localPlayer.Character.Humanoid
 		
-		-- [MODIFICAÇÃO CHAVE]
-		-- Se a velocidade atual for MENOR que a nossa, nós a corrigimos para cima.
-		-- Se for maior (ex: boost do jogo), nós não fazemos nada.
+		-- 1. Lógica da "Trava Mínima"
 		if humanoid.WalkSpeed < currentWalkSpeedValue then
 			humanoid.WalkSpeed = currentWalkSpeedValue
 		end
+
+		-- 2. Sincronização da UI
+		local realSpeed = humanoid.WalkSpeed
+		local speedText = tostring(math.floor(realSpeed))
+
+		-- Atualiza o texto apenas se for diferente, para otimizar
+		if speedInput.Text ~= speedText then
+			speedInput.Text = speedText
+		end
+		
+		-- Atualiza a posição do slider
+		local percentage = (realSpeed - gameDefaultWalkSpeed) / (CONFIG.MAX_WALKSPEED - gameDefaultWalkSpeed)
+		percentage = math.clamp(percentage, 0, 1)
+
+		-- Usa Tween para suavizar a movimentação do slider (quando o jogo dá boosts)
+		TweenService:Create(sliderFill, TweenInfo.new(0.1), { Size = UDim2.fromScale(percentage, 1) }):Play()
+		TweenService:Create(sliderHandle, TweenInfo.new(0.1), { Position = UDim2.fromScale(percentage, 0.5) }):Play()
 	end
 end
 
@@ -187,17 +199,34 @@ makeDraggable(mainFrame, titleContainer); makeSliderDraggable(sliderHandle, slid
 UserInputService.InputBegan:Connect(function(input, gameProcessed) if gameProcessed or input.KeyCode ~= CONFIG.TOGGLE_UI_KEY then return end; isUiVisible = not isUiVisible; mainFrame.Visible = isUiVisible; blurEffect.Enabled = isUiVisible; local blurSize = isUiVisible and 12 or 0; TweenService:Create(blurEffect, TweenInfo.new(0.3), {Size = blurSize}):Play(); showNotification("🔨", isUiVisible and "ON" or "OFF", 2); if isUiVisible then mainFrame.Position = lastUIPosition; populatePlayerList() end end)
 toggleAllOnButton.MouseButton1Click:Connect(function() for _, player in ipairs(Players:GetPlayers()) do if player ~= localPlayer then espTargets[player] = true end end; populatePlayerList() end)
 toggleAllOffButton.MouseButton1Click:Connect(function() for _, player in ipairs(Players:GetPlayers()) do if player ~= localPlayer then espTargets[player] = false end end; populatePlayerList() end)
-speedInput.FocusLost:Connect(function(enterPressed) if enterPressed then updateWalkSpeed(speedInput.Text) end end)
-resetButton.MouseButton1Click:Connect(function() updateWalkSpeed(CONFIG.DEFAULT_WALKSPEED) end)
+speedInput.FocusLost:Connect(function(enterPressed) if enterPressed then setWalkSpeed(speedInput.Text) end end)
+
+-- [MODIFICADO] Botão de Reset agora usa a velocidade padrão real do jogo
+resetButton.MouseButton1Click:Connect(function() setWalkSpeed(gameDefaultWalkSpeed) end)
+
 applyHoverEffect(toggleAllOnButton, COLORS.Accent, COLORS.Accent:Lerp(Color3.new(1,1,1), 0.2)); applyHoverEffect(toggleAllOffButton, COLORS.Red, COLORS.Red:Lerp(Color3.new(1,1,1), 0.2)); applyHoverEffect(resetButton, COLORS.Secondary, COLORS.Stroke)
 Players.PlayerAdded:Connect(function(player) task.wait(1); if mainFrame.Visible then populatePlayerList() end end)
 Players.PlayerRemoving:Connect(function(player) if espTargets[player] then espTargets[player] = nil end; if espDrawings[player] then for _, line in pairs(espDrawings[player]) do line:Remove() end; espDrawings[player] = nil end; if mainFrame.Visible then populatePlayerList() end end)
-localPlayer.CharacterAdded:Connect(function(char) task.wait(0.5); updateWalkSpeed(currentWalkSpeedValue) end)
+
+-- [MODIFICADO] Evento de respawn agora detecta a velocidade padrão do jogo
+localPlayer.CharacterAdded:Connect(function(char)
+	task.wait(1) -- Espera um pouco para o jogo carregar completamente o personagem
+	local humanoid = char:WaitForChild("Humanoid")
+	gameDefaultWalkSpeed = humanoid.WalkSpeed
+	setWalkSpeed(currentWalkSpeedValue) -- Re-aplica a velocidade mínima escolhida
+end)
 
 RunService.RenderStepped:Connect(function()
 	updateEsp()
-	forceWalkSpeed()
+	syncAndForceWalkSpeed()
 end)
 
 populatePlayerList()
-if localPlayer.Character and localPlayer.Character:FindFirstChildOfClass("Humanoid") then CONFIG.DEFAULT_WALKSPEED = localPlayer.Character.Humanoid.WalkSpeed; updateWalkSpeed(CONFIG.DEFAULT_WALKSPEED) end
+local function initialize()
+	local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+	local humanoid = char:WaitForChild("Humanoid")
+	gameDefaultWalkSpeed = humanoid.WalkSpeed
+	currentWalkSpeedValue = gameDefaultWalkSpeed
+	speedInput.Text = tostring(math.floor(gameDefaultWalkSpeed))
+end
+initialize()

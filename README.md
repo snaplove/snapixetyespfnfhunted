@@ -1,6 +1,6 @@
--- SNAP ESP - BUILD "GLASS" v2.7 (corrigido)
+-- SNAP ESP - BUILD "GLASS" v2.7 (com fallback para Studio)
 -- Autor: snap & Assistente AI
--- Correções: removido 'continue', correção de CFrame/Position, tratamento correto de InputBegan, pequenos hardening
+-- Observação: Detecta Drawing; se não existir usa UI Frames como fallback.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -27,7 +27,7 @@ local lastUIPosition = UDim2.new(0.5, 0, 0.5, 0)
 local gameDefaultWalkSpeed = 16
 local currentWalkSpeedValue = 16
 
--- GUI (mesma estrutura, parcialmente resumida para clareza)
+-- GUI base (igual ao anterior)
 local COLORS = { Background = Color3.fromRGB(20, 22, 30), Primary = Color3.fromRGB(35, 38, 50), Secondary = Color3.fromRGB(28, 30, 40), Stroke = Color3.fromRGB(80, 85, 100), Accent = Color3.fromRGB(0, 200, 255), Red = Color3.fromRGB(255, 80, 80), Text = Color3.fromRGB(255, 255, 255), SubText = Color3.fromRGB(170, 175, 190) }
 local FONT_SETTINGS = { Font = Enum.Font.GothamSemibold, TitleSize = 18, RegularSize = 14, SmallSize = 12 }
 
@@ -85,7 +85,7 @@ local notificationLayout = Instance.new("UIListLayout", notificationFrame); noti
 local notificationIcon = Instance.new("TextLabel", notificationFrame); notificationIcon.Name = "Icon"; notificationIcon.Size = UDim2.new(0, 20, 1, 0); notificationIcon.Font = Enum.Font.SourceSans; notificationIcon.TextSize = 20; notificationIcon.TextColor3 = COLORS.Text; notificationIcon.TextTransparency = 1; notificationIcon.BackgroundTransparency = 1
 local notificationLabel = Instance.new("TextLabel", notificationFrame); notificationLabel.Name = "Label"; notificationLabel.Size = UDim2.new(1, -32, 1, 0); notificationLabel.Font = FONT_SETTINGS.Font; notificationLabel.TextSize = FONT_SETTINGS.RegularSize; notificationLabel.TextColor3 = COLORS.Text; notificationLabel.TextTransparency = 1; notificationLabel.BackgroundTransparency = 1; notificationLabel.TextXAlignment = Enum.TextXAlignment.Left
 
--- funções utilitárias
+-- Notificação e utilitárias
 local currentNotificationTween
 local function showNotification(icon, message, duration)
 	if currentNotificationTween and currentNotificationTween.PlaybackState == Enum.PlaybackState.Playing then
@@ -145,7 +145,6 @@ local function applyDynamicHoverEffect(button, player)
 end
 
 local function populatePlayerList()
-	-- limpa lista (mantém template separado)
 	for _, child in ipairs(scrollingFrame:GetChildren()) do
 		if child:IsA("Frame") or child:IsA("TextLabel") then
 			child:Destroy()
@@ -161,7 +160,6 @@ local function populatePlayerList()
 			playerFrame.TextContainer.DisplayName.Text = player.DisplayName
 			playerFrame.TextContainer.UserName.Text = "(@" .. player.Name .. ")"
 
-			-- proteções: pcall para thumbnail
 			local ok, content = pcall(function()
 				return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
 			end)
@@ -191,24 +189,102 @@ local function populatePlayerList()
 	scrollingFrame.CanvasSize = UDim2.fromOffset(0, totalHeight)
 end
 
-local function getOrCreateDrawings(player)
-	if espDrawings[player] then return espDrawings[player] end
-	local newDrawings = {
-		Top = Drawing.new("Line"),
-		Bottom = Drawing.new("Line"),
-		Left = Drawing.new("Line"),
-		Right = Drawing.new("Line")
-	}
-	for _, line in pairs(newDrawings) do
-		line.Color = CONFIG.BOX_COLOR
-		line.Thickness = CONFIG.THICKNESS
-		line.ZIndex = 2
-		line.Visible = false
+-- ---------- DRAWING DETECTION E FALBACK UI ----------
+local HAS_DRAWING = false
+if typeof(Drawing) == "table" or typeof(Drawing) == "userdata" then
+	if type(Drawing.new) == "function" then
+		HAS_DRAWING = true
 	end
-	espDrawings[player] = newDrawings
-	return newDrawings
 end
 
+-- pasta de UI para fallback
+local espUiFolder = Instance.new("Folder", screenGui)
+espUiFolder.Name = "ESP_UI_FALLBACK"
+
+if not HAS_DRAWING then
+	pcall(function()
+		if showNotification then showNotification("⚠️", "Drawing API não disponível. Usando fallback UI.", 3) else warn("Drawing API não disponível. Usando fallback UI.") end
+	end)
+end
+
+local function createUIBoxForPlayer(player)
+	local container = Instance.new("Frame", espUiFolder)
+	container.Name = "ESP_UI_" .. player.Name
+	container.BackgroundTransparency = 1
+	container.ZIndex = 1000
+
+	local top = Instance.new("Frame", container)
+	top.Name = "Top"; top.BackgroundColor3 = CONFIG.BOX_COLOR; top.BorderSizePixel = 0; top.Visible = false; top.ZIndex = 1000
+	local bottom = Instance.new("Frame", container)
+	bottom.Name = "Bottom"; bottom.BackgroundColor3 = CONFIG.BOX_COLOR; bottom.BorderSizePixel = 0; bottom.Visible = false; bottom.ZIndex = 1000
+	local left = Instance.new("Frame", container)
+	left.Name = "Left"; left.BackgroundColor3 = CONFIG.BOX_COLOR; left.BorderSizePixel = 0; left.Visible = false; left.ZIndex = 1000
+	local right = Instance.new("Frame", container)
+	right.Name = "Right"; right.BackgroundColor3 = CONFIG.BOX_COLOR; right.BorderSizePixel = 0; right.Visible = false; right.ZIndex = 1000
+
+	return {
+		type = "ui",
+		Top = top,
+		Bottom = bottom,
+		Left = left,
+		Right = right,
+		_container = container
+	}
+end
+
+local function getOrCreateDrawings(player)
+	if espDrawings[player] then return espDrawings[player] end
+
+	if HAS_DRAWING then
+		local ok, newDrawings = pcall(function()
+			return {
+				type = "drawing",
+				Top = Drawing.new("Line"),
+				Bottom = Drawing.new("Line"),
+				Left = Drawing.new("Line"),
+				Right = Drawing.new("Line")
+			}
+		end)
+		if not ok or type(newDrawings) ~= "table" then
+			warn("Falha ao criar Drawings. Mudando para fallback UI.")
+			HAS_DRAWING = false
+			espDrawings[player] = createUIBoxForPlayer(player)
+			return espDrawings[player]
+		end
+
+		for _, line in pairs(newDrawings) do
+			if type(line) == "table" or type(line) == "userdata" then
+				line.Color = CONFIG.BOX_COLOR
+				line.Thickness = CONFIG.THICKNESS
+				line.ZIndex = 2
+				line.Visible = false
+			end
+		end
+		espDrawings[player] = newDrawings
+		espDrawings[player].type = "drawing"
+		return espDrawings[player]
+	else
+		espDrawings[player] = createUIBoxForPlayer(player)
+		return espDrawings[player]
+	end
+end
+
+local function removeDrawingsForPlayer(player)
+	local d = espDrawings[player]
+	if not d then return end
+	if d.type == "drawing" then
+		for _, v in pairs({d.Top, d.Bottom, d.Left, d.Right}) do
+			pcall(function() if v and v.Remove then v:Remove() end end)
+		end
+	else
+		pcall(function()
+			if d._container then d._container:Destroy() end
+		end)
+	end
+	espDrawings[player] = nil
+end
+
+-- ---------- BOUNDING BOX (manual) ----------
 local function getManualBoundingBox(model)
 	local min, max = Vector3.new(math.huge, math.huge, math.huge), Vector3.new(-math.huge, -math.huge, -math.huge)
 	local hasParts = false
@@ -235,18 +311,31 @@ local function getManualBoundingBox(model)
 	return CFrame.new(center), size
 end
 
+-- ---------- UPDATE ESP (suporta drawing e ui fallback) ----------
 local function updateEsp()
-	-- esconde tudo primeiro
-	for _, drawings in pairs(espDrawings) do
-		for _, line in pairs(drawings) do
-			line.Visible = false
+	-- primeiro esconde tudo
+	for _, d in pairs(espDrawings) do
+		if d then
+			if d.type == "drawing" then
+				pcall(function()
+					if d.Top then d.Top.Visible = false end
+					if d.Bottom then d.Bottom.Visible = false end
+					if d.Left then d.Left.Visible = false end
+					if d.Right then d.Right.Visible = false end
+				end)
+			else
+				pcall(function()
+					if d.Top then d.Top.Visible = false end
+					if d.Bottom then d.Bottom.Visible = false end
+					if d.Left then d.Left.Visible = false end
+					if d.Right then d.Right.Visible = false end
+				end)
+			end
 		end
 	end
 
-	for player, isEnabled in pairs(espTargets) do
-		if not isEnabled then
-			-- skip
-		else
+	for player, enabled in pairs(espTargets) do
+		if enabled then
 			local character = player.Character
 			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 			local primaryPart = character and character.PrimaryPart
@@ -272,7 +361,6 @@ local function updateEsp()
 
 					for _, pos3D in ipairs(corners) do
 						local pos2D, onScreen = camera:WorldToScreenPoint(pos3D)
-						-- pos2D is a Vector3 where X,Y are screen coords and Z is depth; onScreen is boolean
 						if onScreen and pos2D.Z > 0 then
 							pointsOnScreen = pointsOnScreen + 1
 							minX = math.min(minX, pos2D.X)
@@ -284,20 +372,53 @@ local function updateEsp()
 
 					if pointsOnScreen > 0 then
 						local lines = getOrCreateDrawings(player)
-						local topLeft = Vector2.new(minX, minY)
-						local boxWidth = maxX - minX
-						local boxHeight = maxY - minY
+						if not lines then
+							-- sem desenho possível
+						else
+							local topLeftX = minX
+							local topLeftY = minY
+							local boxWidth = math.max(1, maxX - minX)
+							local boxHeight = math.max(1, maxY - minY)
+							if lines.type == "drawing" then
+								pcall(function()
+									lines.Top.From = Vector2.new(topLeftX, topLeftY)
+									lines.Top.To = Vector2.new(topLeftX + boxWidth, topLeftY)
+									lines.Bottom.From = Vector2.new(topLeftX, topLeftY + boxHeight)
+									lines.Bottom.To = Vector2.new(topLeftX + boxWidth, topLeftY + boxHeight)
+									lines.Left.From = Vector2.new(topLeftX, topLeftY)
+									lines.Left.To = Vector2.new(topLeftX, topLeftY + boxHeight)
+									lines.Right.From = Vector2.new(topLeftX + boxWidth, topLeftY)
+									lines.Right.To = Vector2.new(topLeftX + boxWidth, topLeftY + boxHeight)
+									lines.Top.Visible = true
+									lines.Bottom.Visible = true
+									lines.Left.Visible = true
+									lines.Right.Visible = true
+								end)
+							else
+								-- UI fallback: posiciona / redimensiona os frames em screenGui (pixels)
+								pcall(function()
+									local thickness = math.max(1, CONFIG.THICKNESS)
+									lines.Top.Position = UDim2.fromOffset(topLeftX, topLeftY)
+									lines.Top.Size = UDim2.fromOffset(boxWidth, thickness)
+									lines.Bottom.Position = UDim2.fromOffset(topLeftX, topLeftY + boxHeight - thickness)
+									lines.Bottom.Size = UDim2.fromOffset(boxWidth, thickness)
+									lines.Left.Position = UDim2.fromOffset(topLeftX, topLeftY)
+									lines.Left.Size = UDim2.fromOffset(thickness, boxHeight)
+									lines.Right.Position = UDim2.fromOffset(topLeftX + boxWidth - thickness, topLeftY)
+									lines.Right.Size = UDim2.fromOffset(thickness, boxHeight)
 
-						lines.Top.From = topLeft
-						lines.Top.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y)
-						lines.Bottom.From = Vector2.new(topLeft.X, topLeft.Y + boxHeight)
-						lines.Bottom.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y + boxHeight)
-						lines.Left.From = topLeft
-						lines.Left.To = Vector2.new(topLeft.X, topLeft.Y + boxHeight)
-						lines.Right.From = Vector2.new(topLeft.X + boxWidth, topLeft.Y)
-						lines.Right.To = Vector2.new(topLeft.X + boxWidth, topLeft.Y + boxHeight)
+									lines.Top.BackgroundColor3 = CONFIG.BOX_COLOR
+									lines.Bottom.BackgroundColor3 = CONFIG.BOX_COLOR
+									lines.Left.BackgroundColor3 = CONFIG.BOX_COLOR
+									lines.Right.BackgroundColor3 = CONFIG.BOX_COLOR
 
-						for _, line in pairs(lines) do line.Visible = true end
+									lines.Top.Visible = true
+									lines.Bottom.Visible = true
+									lines.Left.Visible = true
+									lines.Right.Visible = true
+								end)
+							end
+						end
 					end
 				end
 			end
@@ -305,6 +426,7 @@ local function updateEsp()
 	end
 end
 
+-- ---------- DRAGGABLE / SLIDER / WALKSPEED ----------
 local function makeDraggable(guiObject, dragHandle)
 	local dragging = false
 	local dragStart = nil
@@ -344,7 +466,7 @@ local function makeSliderDraggable(handle, track)
 				if (subInput.UserInputType == Enum.UserInputType.MouseMovement or subInput.UserInputType == Enum.UserInputType.Touch) and dragging then
 					local mousePos = UserInputService:GetMouseLocation()
 					local relativePos = mousePos.X - track.AbsolutePosition.X
-					local percentage = math.clamp(relativePos / track.AbsoluteSize.X, 0, 1)
+					local percentage = math.clamp(relativePos / math.max(1, track.AbsoluteSize.X), 0, 1)
 					local base = math.min(gameDefaultWalkSpeed, CONFIG.MAX_WALKSPEED)
 					local newSpeed = base + (percentage * (CONFIG.MAX_WALKSPEED - base))
 					setWalkSpeed(newSpeed)
@@ -383,7 +505,6 @@ local function syncAndForceWalkSpeed()
 			end
 			percentage = math.clamp(percentage, 0, 1)
 
-			-- suaviza o slider
 			pcall(function()
 				TweenService:Create(sliderFill, TweenInfo.new(0.1), { Size = UDim2.fromScale(percentage, 1) }):Play()
 				TweenService:Create(sliderHandle, TweenInfo.new(0.1), { Position = UDim2.fromScale(percentage, 0.5) }):Play()
@@ -392,7 +513,7 @@ local function syncAndForceWalkSpeed()
 	end
 end
 
--- conexões e inicialização
+-- ---------- CONEXÕES E INICIALIZAÇÃO ----------
 makeDraggable(mainFrame, titleContainer)
 makeSliderDraggable(sliderHandle, slider)
 
@@ -444,12 +565,7 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
 	if espTargets[player] then espTargets[player] = nil end
-	if espDrawings[player] then
-		for _, line in pairs(espDrawings[player]) do
-			pcall(function() line:Remove() end)
-		end
-		espDrawings[player] = nil
-	end
+	removeDrawingsForPlayer(player)
 	if mainFrame.Visible then populatePlayerList() end
 end)
 
